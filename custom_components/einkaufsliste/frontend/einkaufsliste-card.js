@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.3.0";
+const CARD_VERSION = "1.3.1";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -522,6 +522,33 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
 .sp-foot button:disabled { opacity: .6; }
 .sp-msg { font-size: .82rem; color: var(--secondary-text-color); }
 .sp-loading { padding: 30px 0; text-align: center; color: var(--secondary-text-color); }
+/* Geschäft-Auswahl beim Hinzufügen */
+.picker { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(0,0,0,.45); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); animation: fade .2s ease; }
+.picker[hidden] { display: none; }
+.pk { width: 100%; max-width: 420px; max-height: calc(100vh - 32px); overflow-y: auto; box-sizing: border-box; padding: 20px;
+  background: var(--ha-card-background, var(--card-background-color, #fff)); border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  animation: up .25s ease; color: var(--primary-text-color); text-align: center; }
+.pk-q { font-size: .85rem; font-weight: 600; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: .04em; }
+.pk-item { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 8px 0 18px; font-size: 1.3rem; font-weight: 700; }
+.pk-ico .emoji { font-size: 30px; }
+.pk-ico .letter { width: 34px; height: 34px; background: hsl(var(--h) 55% 55%); }
+.pk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.pk-opt { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 8px; border-radius: 18px; cursor: pointer;
+  border: 1.5px solid var(--divider-color); background: var(--secondary-background-color); font: inherit; color: var(--primary-text-color);
+  transition: transform .15s, border-color .15s, box-shadow .15s; }
+.pk-opt:hover { border-color: var(--acc); box-shadow: 0 6px 16px -10px var(--acc); }
+.pk-opt:active { transform: scale(.95); }
+.pk-logo { width: 44px; height: 44px; display: grid; place-items: center; }
+.pk-logo .slogo { width: 44px; height: 44px; border-radius: 12px; font-size: 28px; }
+.pk-logo .slogo.sletter { font-size: 20px; }
+.pk-logo .cart-ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(135deg, var(--acc), var(--acc2)); }
+.pk-logo .cart-ico svg { width: 26px; height: 26px; }
+.pk-name { font-size: .88rem; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.pk-cancel { margin-top: 16px; border: 0; background: transparent; color: var(--secondary-text-color); font: inherit; font-weight: 600;
+  cursor: pointer; padding: 8px 16px; border-radius: 12px; }
+.pk-cancel:hover { background: var(--secondary-background-color); }
 `;
 
 class EinkaufslisteCard extends HTMLElement {
@@ -745,10 +772,45 @@ class EinkaufslisteCard extends HTMLElement {
   }
 
   /** Wieder auf die Liste setzen – im Geschäfts-Reiter direkt diesem Geschäft zuordnen. */
-  _readd(uid) {
+  /**
+   * Geschäft für einen neuen Artikel festlegen. Es gibt keine automatische Vorauswahl:
+   * Sind auf der Startseite Geschäfts-Reiter eingeblendet, fragt ein Fenster nach dem Geschäft,
+   * sonst landet der Artikel unter „Überall“.
+   */
+  _withStore(name, done, onCancel) {
+    const tabs = this._visibleTabs || [];
+    if (!tabs.length) { this._assignIfNeeded(name, ""); done(); return; }
+    this._pickerDone = (sid) => { this._assignIfNeeded(name, sid); done(); };
+    this._pickerCancel = onCancel || null;
+    const p = this._els.picker;
+    p.querySelector(".pk-item").innerHTML = `<span class="pk-ico">${fallbackIcon(name)}</span><span>${esc(name)}</span>`;
+    p.querySelector(".pk-grid").innerHTML = [
+      `<button type="button" class="pk-opt" data-store=""><span class="pk-logo"><span class="cart-ico">${ICONS.cart}</span></span><span class="pk-name">Überall</span></button>`,
+      ...tabs.map((st) => `<button type="button" class="pk-opt" data-store="${esc(st.id)}" style="--h:${hueFor(st.name)}">
+        <span class="pk-logo">${storeLogo(st)}</span><span class="pk-name">${esc(st.name)}</span></button>`),
+    ].join("");
+    p.hidden = false;
+  }
+
+  _closePicker(picked) {
+    this._els.picker.hidden = true;
+    const done = this._pickerDone, cancel = this._pickerCancel;
+    this._pickerDone = this._pickerCancel = null;
+    if (picked !== undefined) done && done(picked);
+    else if (cancel) cancel();
+  }
+
+  _assignIfNeeded(name, storeId) {
+    const key = name.trim().toLowerCase();
+    const o = this._assignOverride.get(key);
+    const current = o ? o.store || "" : (this._attrs.assignments || {})[key] || "";
+    if ((storeId || "") !== current) this._assign(name, storeId || "");
+  }
+
+  _readd(uid, onCancel) {
     const item = this._items.find((i) => i.uid === uid);
-    if (item && this._tab) this._assign(item.summary, this._tab);
-    this._setStatus(uid, "needs_action");
+    if (!item) return;
+    this._withStore(item.summary, () => { this._setStatus(uid, "needs_action"); this._renderItems(); }, onCancel);
   }
 
   _add(text) {
@@ -757,7 +819,10 @@ class EinkaufslisteCard extends HTMLElement {
     let spec = "";
     const idx = name.indexOf(",");
     if (idx > 0) { spec = name.slice(idx + 1).trim(); name = name.slice(0, idx).trim(); }
-    if (this._tab) this._assign(name, this._tab);
+    this._withStore(name, () => this._addNow(name, spec), () => { this._els.input.value = text; });
+  }
+
+  _addNow(name, spec) {
     const existing = this._items.find((i) => i.summary.toLowerCase() === name.toLowerCase());
     if (existing) {
       this._pending.set(existing.uid, { status: "needs_action", ts: Date.now() });
@@ -809,6 +874,14 @@ class EinkaufslisteCard extends HTMLElement {
               <button class="btn-cancel" type="button">Abbrechen</button>
               <button class="btn-save" type="button">Speichern</button>
             </div>
+          </div>
+        </div>
+        <div class="picker" hidden>
+          <div class="pk">
+            <div class="pk-q">Wo kaufst du das?</div>
+            <div class="pk-item"></div>
+            <div class="pk-grid"></div>
+            <button type="button" class="pk-cancel">Abbrechen</button>
           </div>
         </div>
         <div class="settings" hidden>
@@ -872,7 +945,7 @@ class EinkaufslisteCard extends HTMLElement {
       const uid = el.dataset.uid;
       if (el.closest(".recent")) {
         el.classList.add("readd");
-        setTimeout(() => { this._readd(uid); this._renderItems(); }, 300);
+        setTimeout(() => this._readd(uid, () => { this._sig = ""; this._renderItems(); }), 300);
       } else if (el.classList.contains("checked")) {
         // Rückgängig: wieder auf die Liste
         this._localChecked.delete(uid);
@@ -962,6 +1035,20 @@ class EinkaufslisteCard extends HTMLElement {
     for (const inp of [this._els.edName, this._els.edSpec]) {
       inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") this._saveEditor(); if (ev.key === "Escape") this._closeEditor(); });
     }
+
+    // Geschäft-Auswahl beim Hinzufügen
+    this._els.picker = $(".picker");
+    this._els.picker.addEventListener("click", (ev) => {
+      const opt = ev.target.closest(".pk-opt");
+      if (opt) return this._closePicker(opt.dataset.store || "");
+      if (ev.target === this._els.picker || ev.target.closest(".pk-cancel")) this._closePicker();
+    });
+    this._els.picker.addEventListener("error", (ev) => {
+      const img = ev.target;
+      if (img.tagName === "IMG" && img.dataset.cls) {
+        img.outerHTML = `<span class="${img.dataset.cls} sletter" style="--h:${img.dataset.hue}">${esc(img.dataset.letter)}</span>`;
+      }
+    }, true);
 
     // Einstellungen
     this._els.settings = $(".settings");
@@ -1258,6 +1345,7 @@ class EinkaufslisteCard extends HTMLElement {
     }
     const storeTabs = this._stores.filter((s) => byStore.has(s.id) || byStoreDone.has(s.id));
     if (this._tab && !storeTabs.some((s) => s.id === this._tab)) this._tab = "";
+    this._visibleTabs = useTabs ? storeTabs : [];
 
     const sig = JSON.stringify([
       this._loaded, this._error, this._tab, this._config.layout,

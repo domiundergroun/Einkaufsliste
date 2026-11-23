@@ -35,7 +35,7 @@ Alle Einstellungen (Geschäfte, Bring-Zugang, Liste, Aktualisierung) findest du 
 3. Sobald einem Geschäft Artikel zugeordnet sind, erscheint oben ein Reiter dafür:
    - **Allgemein** zeigt alle Artikel ohne Geschäft.
    - **Geschäfts-Reiter** erscheinen als Logo (mit Anzahl) – ohne Logo als farbiger Name – und zeigen „Nur bei …“ plus alle allgemeinen Artikel.
-4. Die Zuordnung wird pro Artikelname gemerkt – kommt „Gouda“ wieder auf die Liste, landet er automatisch bei seinem Geschäft. Wer in einem Geschäfts-Reiter etwas hinzufügt, ordnet es direkt diesem Geschäft zu.
+4. Beim Hinzufügen gibt es keine automatische Vorauswahl: Sind Geschäfts-Reiter eingeblendet, fragt ein Fenster „Wo kaufst du das?“ mit „Überall“ und den gerade sichtbaren Geschäften. Ohne Reiter landet der Artikel unter „Überall“.
 
 Die Logos werden in der Karte direkt über die Webseite des Geschäfts geladen. Ohne Internet erscheint ein farbiger Anfangsbuchstabe.
 
