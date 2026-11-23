@@ -96,6 +96,7 @@ class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEnt
             "einkaufsliste": True,
             "stores": self.coordinator.stores,
             "assignments": dict(self.coordinator.assignments),
+            "checked": {uid: round(ts) for uid, ts in self.coordinator.checked.items()},
         }
 
     async def async_set_store(self, item: str, store: str | None = "") -> None:

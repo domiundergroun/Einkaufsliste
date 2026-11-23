@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.1.2";
+const CARD_VERSION = "1.2.0";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -451,6 +451,26 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
 .store-pick button.sel { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 12%, transparent); color: var(--acc); font-weight: 600; }
 .store-pick .slogo { width: 20px; height: 20px; }
 .store-empty { font-size: .8rem; color: var(--secondary-text-color); }
+/* Abgehakt: grau, durchgestrichen, am Ende – antippen macht es rückgängig */
+.tile.checked { background: var(--secondary-background-color); color: var(--secondary-text-color); box-shadow: none; }
+.tile.checked:hover { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--acc) 45%, transparent); transform: none; }
+.tile.checked .ico { filter: grayscale(1); opacity: .45; }
+.tile.checked .name, .tile.checked .spec { text-decoration: line-through; text-decoration-thickness: 2px; opacity: .75; }
+.tile.checked .badge-store { filter: grayscale(1); opacity: .6; }
+.tile.checked .tick { opacity: 1; background: transparent; inset: auto; top: 6px; left: 6px; width: 20px; height: 20px;
+  border-radius: 50%; background: color-mix(in srgb, var(--secondary-text-color) 55%, transparent); }
+.tile.checked .tick svg { width: 14px; height: 14px; }
+.tile.checking { animation: none; transform: scale(.94); filter: grayscale(1); opacity: .6; transition: all .25s ease; }
+.tile.checking .tick { opacity: 1; }
+.tile.unchecking, .row.unchecking { opacity: .3; transform: scale(.96); transition: all .18s ease; }
+.row.checked { background: transparent; box-shadow: inset 0 0 0 1px var(--divider-color); color: var(--secondary-text-color); }
+.row.checked .ico { filter: grayscale(1); opacity: .45; }
+.row.checked .name, .row.checked .spec { text-decoration: line-through; text-decoration-thickness: 2px; }
+.row.checked .circle { background: var(--secondary-text-color); border-color: var(--secondary-text-color); color: #fff; opacity: .6; }
+.row.checking .circle { background: var(--acc); border-color: var(--acc); color: #fff; }
+.row.checking { opacity: .6; transition: opacity .25s; }
+.empty.small { padding: 4px 8px 14px; }
+.empty.small svg { width: 44px; height: 44px; }
 `;
 
 class EinkaufslisteCard extends HTMLElement {
@@ -461,6 +481,7 @@ class EinkaufslisteCard extends HTMLElement {
     this._loaded = false;
     this._pending = new Map(); // uid -> {status, ts}
     this._assignOverride = new Map(); // key -> {store, ts}
+    this._localChecked = new Map(); // uid -> ts (abgehakt, bevor HA es bestätigt)
     this._recentOpen = false;
     this._tab = "";
     this._unsub = null;
@@ -544,8 +565,12 @@ class EinkaufslisteCard extends HTMLElement {
     this._renderItems();
   }
 
-  connectedCallback() { this._subscribe(); }
-  disconnectedCallback() { this._unsubscribe(); }
+  connectedCallback() {
+    this._subscribe();
+    clearInterval(this._dayTimer);
+    this._dayTimer = setInterval(() => { this._sig = ""; this._renderItems(); }, 60000);
+  }
+  disconnectedCallback() { this._unsubscribe(); clearInterval(this._dayTimer); }
 
   getCardSize() { return 3 + Math.ceil(this._open().length / 4); }
   getGridOptions() { return { columns: 12, min_columns: 4, rows: "auto" }; }
@@ -618,7 +643,33 @@ class EinkaufslisteCard extends HTMLElement {
   }
 
   _open() { return this._sorted(this._items.filter((i) => this._status(i) === "needs_action")); }
-  _recent() { return this._items.filter((i) => this._status(i) === "completed"); }
+
+  /** Heute abgehakte Artikel: bleiben durchgestrichen am Ende der Liste bis 0 Uhr. */
+  _checkedTs(item) {
+    if (this._status(item) !== "completed") return null;
+    const server = this._attrs.checked || {};
+    let ts = null;
+    if (Object.prototype.hasOwnProperty.call(server, item.uid)) {
+      ts = Number(server[item.uid]) * 1000;
+      this._localChecked.delete(item.uid);
+    } else if (this._localChecked.has(item.uid)) {
+      ts = this._localChecked.get(item.uid);
+      if (Date.now() - ts > 60000) { this._localChecked.delete(item.uid); ts = null; }
+    }
+    if (ts === null) return null;
+    const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+    return ts >= midnight.getTime() ? ts : null;
+  }
+
+  _checked() {
+    return this._items
+      .map((i) => [i, this._checkedTs(i)])
+      .filter(([, ts]) => ts !== null)
+      .sort((a, b) => a[1] - b[1])
+      .map(([i]) => i);
+  }
+
+  _recent() { return this._items.filter((i) => this._status(i) === "completed" && this._checkedTs(i) === null); }
 
   async _call(service, data, domain = "todo") {
     try {
@@ -758,9 +809,15 @@ class EinkaufslisteCard extends HTMLElement {
       if (el.closest(".recent")) {
         el.classList.add("readd");
         setTimeout(() => { this._readd(uid); this._renderItems(); }, 300);
+      } else if (el.classList.contains("checked")) {
+        // Rückgängig: wieder auf die Liste
+        this._localChecked.delete(uid);
+        el.classList.add("unchecking");
+        setTimeout(() => { this._setStatus(uid, "needs_action"); this._renderItems(); }, 180);
       } else {
-        el.classList.add("done");
-        setTimeout(() => { this._setStatus(uid, "completed"); this._renderItems(); }, 420);
+        this._localChecked.set(uid, Date.now());
+        el.classList.add("checking");
+        setTimeout(() => { this._setStatus(uid, "completed"); this._renderItems(); }, 260);
       }
     };
     const startPress = (ev) => {
@@ -903,9 +960,11 @@ class EinkaufslisteCard extends HTMLElement {
   _renderSub() {
     if (!this._els) return;
     const n = this._open().length;
+    const d = this._checked().length;
+    const done = d ? ` · ${d} erledigt` : "";
     this._els.sub.innerHTML = !this._loaded
       ? "Wird geladen …"
-      : n === 0 ? "Alles erledigt" : `<b>${n}</b> Artikel auf der Liste`;
+      : n === 0 ? `Alles erledigt${d ? " 🎉" : ""}` : `<b>${n}</b> Artikel auf der Liste${done}`;
   }
 
   _isNew(item, scope) {
@@ -915,25 +974,26 @@ class EinkaufslisteCard extends HTMLElement {
     return this._firstPaint ? "" : " new";
   }
 
-  _tile(item, scope, badgeStore = null) {
+  _tile(item, scope, badgeStore = null, checked = false) {
     const icons = this._config.show_icons === true;
     const spec = item.description ? `<span class="spec">${esc(item.description)}</span>` : "";
     const badge = badgeStore ? `<span class="badge-store">${storeLogo(badgeStore)}</span>` : "";
     if (this._config.layout === "list" && scope !== "r") {
-      return `<button class="row${this._isNew(item, scope)}" data-uid="${esc(item.uid)}" data-name="${esc(item.summary)}">
+      return `<button class="row${checked ? " checked" : ""}${this._isNew(item, scope + (checked ? "x" : ""))}" data-uid="${esc(item.uid)}" data-name="${esc(item.summary)}">
         <span class="ico">${iconHtml(item.summary, icons)}</span>
         <span class="txt"><span class="name">${esc(item.summary)}</span>${spec}</span>
         ${badge}<span class="circle">${ICONS.check}</span></button>`;
     }
-    return `<button class="tile${this._isNew(item, scope)}" data-uid="${esc(item.uid)}" data-name="${esc(item.summary)}" title="${esc(item.summary)}">
+    return `<button class="tile${checked ? " checked" : ""}${this._isNew(item, scope + (checked ? "x" : ""))}" data-uid="${esc(item.uid)}" data-name="${esc(item.summary)}" title="${esc(item.summary)}">
       ${badge}<span class="ico">${iconHtml(item.summary, icons)}</span>
       <span class="name">${esc(item.summary)}</span>${spec}
       <span class="tick">${ICONS.check}</span></button>`;
   }
 
-  _block(items, scope, badgeStore = null) {
+  _block(items, scope, badgeStore = null, checked = []) {
     const cls = this._config.layout === "list" ? "list" : "grid";
-    return `<div class="${cls}">${items.map((i) => this._tile(i, scope, badgeStore)).join("")}</div>`;
+    return `<div class="${cls}">${items.map((i) => this._tile(i, scope, badgeStore)).join("")}${
+      checked.map((i) => this._tile(i, scope, badgeStore, true)).join("")}</div>`;
   }
 
   _renderItems() {
@@ -954,12 +1014,24 @@ class EinkaufslisteCard extends HTMLElement {
         byStore.get(sid).push(item);
       }
     }
-    const storeTabs = this._stores.filter((s) => byStore.has(s.id));
-    if (this._tab && !byStore.has(this._tab)) this._tab = "";
+    const checked = this._checked();
+    const generalDone = [];
+    const byStoreDone = new Map();
+    for (const item of checked) {
+      const sid = useTabs ? this._storeIdOf(item) : null;
+      if (!sid) generalDone.push(item);
+      else {
+        if (!byStoreDone.has(sid)) byStoreDone.set(sid, []);
+        byStoreDone.get(sid).push(item);
+      }
+    }
+    const storeTabs = this._stores.filter((s) => byStore.has(s.id) || byStoreDone.has(s.id));
+    if (this._tab && !storeTabs.some((s) => s.id === this._tab)) this._tab = "";
 
     const sig = JSON.stringify([
       this._loaded, this._error, this._tab, this._config.layout,
       open.map((i) => [i.uid, i.summary, i.description, useTabs ? this._storeIdOf(i) : null]),
+      checked.map((i) => [i.uid, i.summary, i.description, useTabs ? this._storeIdOf(i) : null]),
       this._recent().map((i) => [i.uid, i.summary]),
       storeTabs.map((s) => s.id),
     ]);
@@ -980,7 +1052,7 @@ class EinkaufslisteCard extends HTMLElement {
         `<button class="tab icon-tab cart-tab ${tabCls("")}" data-tab="" title="Allgemein" aria-label="Allgemein">
           <span class="cart-ico">${ICONS.cart}</span><span class="n">${general.length}</span></button>`,
         ...storeTabs.map((st) => {
-          const n = byStore.get(st.id).length;
+          const n = (byStore.get(st.id) || []).length;
           if (!st.domain || failedLogos.has(st.domain)) return nameTab(st, n);
           return `<button class="tab icon-tab ${tabCls(st.id)}" data-tab="${esc(st.id)}" data-domain="${esc(st.domain)}"
             data-name="${esc(st.name)}" data-emoji="${esc(st.emoji || "")}" title="${esc(st.name)}" aria-label="${esc(st.name)}">
@@ -992,19 +1064,23 @@ class EinkaufslisteCard extends HTMLElement {
     // Inhalt
     if (!this._loaded && !this._error) {
       els.items.innerHTML = `<div class="empty">Liste wird geladen …</div>`;
-    } else if (open.length === 0) {
+    } else if (open.length === 0 && checked.length === 0) {
       els.items.innerHTML = `<div class="empty">${ICONS.party}<div class="big">Alles eingekauft!</div>
         <div>Füge oben etwas hinzu oder tippe unten auf einen Artikel.</div></div>`;
     } else if (this._tab) {
       const store = this._storeById(this._tab);
       const own = byStore.get(this._tab) || [];
-      let html = `<div class="section">${storeLogo(store)}Nur bei ${esc(store.name)}</div>${this._block(own, "s", store)}`;
-      if (general.length) html += `<div class="section"><span class="slogo semoji">🛒</span>Überall erhältlich</div>${this._block(general, "g")}`;
+      const ownDone = byStoreDone.get(this._tab) || [];
+      let html = `<div class="section">${storeLogo(store)}Nur bei ${esc(store.name)}</div>${this._block(own, "s", store, ownDone)}`;
+      if (general.length || generalDone.length) {
+        html += `<div class="section"><span class="slogo semoji">🛒</span>Überall erhältlich</div>${this._block(general, "g", null, generalDone)}`;
+      }
       els.items.innerHTML = html;
     } else {
       const others = open.length - general.length;
-      let html = general.length
-        ? this._block(general, "g")
+      let html = general.length || generalDone.length
+        ? (general.length ? "" : `<div class="empty small">${ICONS.party}<div class="big">Alles erledigt!</div></div>`) +
+          this._block(general, "g", null, generalDone)
         : `<div class="empty"><div class="big">Nichts Allgemeines</div><div>Alle Artikel gehören zu einem Geschäft.</div></div>`;
       if (others) html += `<div class="hint">+ ${others} Artikel in den Geschäfts-Reitern</div>`;
       els.items.innerHTML = html;

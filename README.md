@@ -4,7 +4,8 @@ Zeigt deine **Bring!-Einkaufsliste** als schöne Karte in Home Assistant – mit
 
 - Anmeldung bei Bring! und Listenauswahl direkt in den Home-Assistant-Einstellungen
 - Eigene Lovelace-Karte `einkaufsliste-card` (wird automatisch geladen – keine Ressource nötig)
-- Antippen = abhaken, „Zuletzt gekauft“ antippen = wieder auf die Liste
+- Antippen = abhaken: der Artikel rutscht grau und durchgestrichen ans Ende der Liste. Nochmal antippen macht es rückgängig, um 0 Uhr verschwindet er.
+- „Zuletzt gekauft“ antippen = wieder auf die Liste
 - Hinzufügen mit Beschreibung: `Milch, 2 Liter`
 - Langes Drücken / Rechtsklick = Name & Beschreibung bearbeiten oder löschen
 - Kachel- oder Listenansicht, mehrere Farben, Hell- & Dunkelmodus

@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.typing import ConfigType
 
 from .api import BringAuthError, BringClient, BringError
@@ -56,6 +57,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: EinkaufslisteConfigEntry
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
+    async def _midnight(_now) -> None:
+        await coordinator.async_midnight()
+
+    entry.async_on_unload(async_track_time_change(hass, _midnight, hour=0, minute=0, second=0))
     return True
 
 
