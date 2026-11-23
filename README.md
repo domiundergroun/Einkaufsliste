@@ -12,6 +12,7 @@ Zeigt deine **Einkaufsliste aus Bring!, Alexa oder Home Assistant** als schöne 
 - Über 1.300 Stichwörter für Lebensmittel & Haushalt mit passendem Bild (auch zusammengesetzte Wörter wie „Vollkornbrot“ oder „Bergkäse“)
 - **Reiter für Geschäfte**: Artikel lassen sich ALDI, Lidl, REWE, dm & Co. zuordnen – mit Logo
 - Die Liste ist zusätzlich als normale To-do-Entität nutzbar (Automationen, Sprachassistent, To-do-Ansicht)
+- **Verbindung zum Kochbuch**: Zutaten aus Rezepten landen per Knopfdruck auf dieser Liste
 
 ## Installation
 
@@ -47,6 +48,11 @@ Unter ⚙️ → **Listen**:
 - Beim ersten Abgleich werden beide Listen zusammengeführt; bereits erledigte Artikel (z. B. Bring „Zuletzt gekauft“) werden nicht kopiert.
 - Ändern beide Seiten denselben Artikel gleichzeitig, gewinnt die Hauptliste.
 - Verzögerung: so lange, wie die Listen zum Aktualisieren brauchen (Bring: dein Intervall, Alexa: je nach Integration).
+
+## Kochbuch
+Mit der Integration [Kochbuch](https://github.com/domiundergroun/Kochrezepte) (ab Version 1.9.0) schickt „Zur Einkaufsliste hinzufügen“ im Rezept die Zutaten direkt auf diese Liste – mit der Menge als Beschreibung. Eingestellt wird das im Kochbuch unter **Einstellungen › Einkaufsliste › Unsere Einkaufsliste**.
+
+Ist die Verbindung aktiv, erscheint in der Karte unter ⚙️ ein Bereich **Kochbuch** mit grünem Lämpchen. Ohne Verbindung wird er nicht angezeigt.
 
 ## Geschäfte
 1. **Einstellungen → Geräte & Dienste → Einkaufsliste (Bring!) → Konfigurieren** → unter „Deine Geschäfte“ auswählen (eigene Geschäfte mit Komma getrennt ergänzen).

@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.6.0";
+const CARD_VERSION = "1.7.0";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -550,6 +550,11 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
   cursor: pointer; padding: 8px 16px; border-radius: 12px; }
 .pk-cancel:hover { background: var(--secondary-background-color); }
 /* Einklappbare Bereiche in den Einstellungen */
+.kb-state { display: inline-flex; align-items: center; gap: 7px; color: #2a9d2a; font-weight: 700; }
+.lamp { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #2EB82E; flex: none;
+  box-shadow: 0 0 0 3px rgba(46,184,46,.22), 0 0 8px rgba(46,184,46,.8); animation: kb-glow 2.4s ease-in-out infinite; }
+@keyframes kb-glow { 50% { box-shadow: 0 0 0 5px rgba(46,184,46,.12), 0 0 12px rgba(46,184,46,.9); } }
+@media (prefers-reduced-motion: reduce) { .lamp { animation: none; } }
 .acc { border-bottom: 1px solid var(--divider-color); }
 .acc:last-child { border-bottom: 0; }
 .acc > summary { color: var(--primary-text-color); list-style: none; display: flex; align-items: center; gap: 10px; padding: 14px 2px; cursor: pointer; user-select: none; }
@@ -1215,17 +1220,38 @@ class EinkaufslisteCard extends HTMLElement {
         sync: new Set(r.sync_targets || []),
         sync_enabled: r.sync_enabled !== false,
       };
+      this._set.kochbuch = await this._loadKochbuchLink();
       this._renderSettings();
       this._els.spSave.disabled = false;
     } catch (e) {
       const admin = e && (e.code === "unauthorized" || /unauthor/i.test(e.message || ""));
       this._els.spBody.innerHTML = `<div class="error">${admin
         ? "Nur Administratoren können die Einstellungen ändern."
-        : esc(e?.message || "Einstellungen konnten nicht geladen werden. Ist die Integration auf Version 1.6.0 aktualisiert und Home Assistant neu gestartet?")}</div>`;
+        : esc(e?.message || "Einstellungen konnten nicht geladen werden. Ist die Integration auf Version 1.7.0 aktualisiert und Home Assistant neu gestartet?")}</div>`;
     }
   }
 
   _closeSettings() { this._els.settings.hidden = true; }
+
+  /** Verbindung zum Kochbuch (Integration „kochbuch“) – null, wenn nicht installiert. */
+  async _loadKochbuchLink() {
+    try { return await this._hass.callWS({ type: "kochbuch/link" }); } catch (e) { return null; }
+  }
+
+  /** Bereich „Kochbuch“ mit grünem Lämpchen – nur sichtbar, wenn das Kochbuch auf diese Liste zeigt. */
+  _kochbuchHtml() {
+    const k = this._set && this._set.kochbuch;
+    if (!k || !k.connected || k.entity_id !== this._config.entity) return "";
+    return `
+      <details class="acc kb-acc">
+        <summary><span class="acc-ico">🍳</span><span class="acc-t">Kochbuch</span>
+          <span class="acc-sub kb-state"><span class="lamp"></span>Verbunden</span><span class="acc-chev">${ICONS.chevron}</span></summary>
+        <div class="acc-body">
+          <p class="sp-hint">Das Kochbuch schickt Zutaten aus Rezepten direkt auf diese Liste – über „Zur Einkaufsliste hinzufügen“ im Rezept, mit der Menge als Beschreibung.</p>
+          <p class="sp-hint">Ändern oder trennen lässt sich das im Kochbuch unter Einstellungen › Einkaufsliste.</p>
+        </div>
+      </details>`;
+  }
 
   _renderSettings() {
     const st = this._set;
@@ -1286,7 +1312,7 @@ class EinkaufslisteCard extends HTMLElement {
             <div class="acc-body" id="ha-body">${this._haHtml()}</div>
           </details>
         </div>
-      </details>`;
+      </details>${this._kochbuchHtml()}`;
     this._markSelection();
   }
 
