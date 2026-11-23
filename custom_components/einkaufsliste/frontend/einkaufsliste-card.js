@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.5.0";
+const CARD_VERSION = "1.5.1";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -690,6 +690,9 @@ class EinkaufslisteCard extends HTMLElement {
   }
 
   connectedCallback() {
+    // „Zuletzt gekauft“ ist beim Öffnen des Dashboards immer eingeklappt
+    this._recentOpen = false;
+    this._els?.recentWrap?.classList.remove("open");
     this._subscribe();
     clearInterval(this._dayTimer);
     this._dayTimer = setInterval(() => { this._sig = ""; this._renderItems(); }, 60000);
@@ -886,6 +889,7 @@ class EinkaufslisteCard extends HTMLElement {
   // ------------------------------------------------------------------ render
   _build() {
     const [a1, a2] = ACCENTS[this._config.accent] || ACCENTS.bring;
+    this._recentOpen = false;
     this.shadowRoot.innerHTML = `
       <style>${STYLE}</style>
       <ha-card lang="de" style="--acc:${a1};--acc2:${a2}">
