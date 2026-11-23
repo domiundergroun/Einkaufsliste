@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.2.0";
+const CARD_VERSION = "1.3.0";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -271,6 +271,8 @@ const ICONS = {
   plus: `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2Z"/></svg>`,
   check: `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17Z"/></svg>`,
   chevron: `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7.41 8.58 12 13.17l4.59-4.59L18 10l-6 6-6-6 1.41-1.42Z"/></svg>`,
+  gear: `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/></svg>`,
+  close: `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>`,
   party: `<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="var(--acc)" opacity=".12"/><path d="M20 33l8 8 16-17" fill="none" stroke="var(--acc)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 };
 
@@ -471,6 +473,55 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
 .row.checking { opacity: .6; transition: opacity .25s; }
 .empty.small { padding: 4px 8px 14px; }
 .empty.small svg { width: 44px; height: 44px; }
+/* Einstellungen */
+.settings { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(0,0,0,.45); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); animation: fade .2s ease; }
+.settings[hidden] { display: none; }
+.sp { width: 100%; max-width: 560px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden;
+  background: var(--ha-card-background, var(--card-background-color, #fff)); border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  animation: up .25s ease; color: var(--primary-text-color); }
+.sp-head { display: flex; align-items: center; padding: 14px 12px 10px 20px; border-bottom: 1px solid var(--divider-color); }
+.sp-title { display: flex; align-items: center; gap: 10px; font-size: 1.15rem; font-weight: 700; flex: 1; }
+.sp-title svg { width: 24px; height: 24px; color: var(--acc); }
+.sp-body { overflow-y: auto; padding: 6px 20px 16px; }
+.sp-body section { padding: 14px 0; border-bottom: 1px solid var(--divider-color); }
+.sp-body section:last-child { border-bottom: 0; }
+.sp-body h4 { margin: 0 0 6px; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+.pill { margin-left: auto; font-size: .75rem; font-weight: 600; padding: 2px 9px; border-radius: 999px;
+  background: color-mix(in srgb, var(--acc) 14%, transparent); color: var(--acc); }
+.sp-hint { margin: 0 0 10px; font-size: .82rem; color: var(--secondary-text-color); }
+.sp-label { display: block; font-size: .78rem; color: var(--secondary-text-color); margin: 10px 0 4px; font-weight: 600; }
+.sp-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--divider-color); border-radius: 12px; padding: 10px 12px;
+  font: inherit; background: var(--secondary-background-color); color: var(--primary-text-color); outline: 0; }
+.sp-input:focus { border-color: var(--acc); }
+.sp-num { max-width: 140px; }
+.sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 10px; }
+.sc { position: relative; display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--divider-color); background: transparent;
+  border-radius: 14px; padding: 8px 10px; cursor: pointer; font: inherit; font-size: .85rem; color: var(--primary-text-color); text-align: left;
+  transition: border-color .15s, background .15s; }
+.sc[hidden] { display: none; }
+.sc span:not(.slogo) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc .slogo { width: 24px; height: 24px; }
+.sc i { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--divider-color); display: grid; place-items: center;
+  color: transparent; flex: none; }
+.sc i svg { width: 13px; height: 13px; }
+.sc.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 10%, transparent); font-weight: 600; }
+.sc.on i { background: var(--acc); border-color: var(--acc); color: #fff; }
+.sp-btn { margin-top: 12px; border: 0; border-radius: 12px; padding: 10px 14px; font: inherit; font-weight: 600; cursor: pointer;
+  background: color-mix(in srgb, var(--acc) 14%, transparent); color: var(--acc); }
+.sp-btn:disabled { opacity: .6; cursor: default; }
+.lists { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.li { display: flex; align-items: center; gap: 10px; border: 1.5px solid var(--divider-color); background: transparent; border-radius: 12px;
+  padding: 10px 12px; font: inherit; color: var(--primary-text-color); cursor: pointer; text-align: left; }
+.li-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--divider-color); box-sizing: border-box; flex: none; }
+.li.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 10%, transparent); font-weight: 600; }
+.li.on .li-dot { border: 5px solid var(--acc); }
+.sp-foot { display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--divider-color); }
+.sp-foot .btn-cancel { margin-left: auto; }
+.sp-foot button { border: 0; border-radius: 12px; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+.sp-foot button:disabled { opacity: .6; }
+.sp-msg { font-size: .82rem; color: var(--secondary-text-color); }
+.sp-loading { padding: 30px 0; text-align: center; color: var(--secondary-text-color); }
 `;
 
 class EinkaufslisteCard extends HTMLElement {
@@ -732,6 +783,7 @@ class EinkaufslisteCard extends HTMLElement {
             <div class="badge">${ICONS.cart}</div>
             <div class="titles"><div class="title"></div><div class="sub"></div></div>
             <button class="icon-btn" id="refresh" title="Aktualisieren">${ICONS.refresh}</button>
+            <button class="icon-btn" id="settings" title="Einstellungen">${ICONS.gear}</button>
           </header>
           <form class="add" autocomplete="off">
             <input id="input" enterkeyhint="done" placeholder="Was brauchst du? (z. B. Milch, 2 Liter)">
@@ -756,6 +808,18 @@ class EinkaufslisteCard extends HTMLElement {
               <button class="btn-del" type="button">Löschen</button>
               <button class="btn-cancel" type="button">Abbrechen</button>
               <button class="btn-save" type="button">Speichern</button>
+            </div>
+          </div>
+        </div>
+        <div class="settings" hidden>
+          <div class="sp">
+            <div class="sp-head"><div class="sp-title">${ICONS.gear}<span>Einstellungen</span></div>
+              <button class="icon-btn" id="sp-close" title="Schließen">${ICONS.close}</button></div>
+            <div class="sp-body"></div>
+            <div class="sp-foot">
+              <span class="sp-msg"></span>
+              <button class="btn-cancel" type="button" id="sp-cancel">Abbrechen</button>
+              <button class="btn-save" type="button" id="sp-save">Speichern</button>
             </div>
           </div>
         </div>
@@ -899,10 +963,177 @@ class EinkaufslisteCard extends HTMLElement {
       inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") this._saveEditor(); if (ev.key === "Escape") this._closeEditor(); });
     }
 
+    // Einstellungen
+    this._els.settings = $(".settings");
+    this._els.spBody = $(".sp-body");
+    this._els.spMsg = $(".sp-msg");
+    this._els.spSave = $("#sp-save");
+    $("#settings").addEventListener("click", () => this._openSettings());
+    $("#sp-close").addEventListener("click", () => this._closeSettings());
+    $("#sp-cancel").addEventListener("click", () => this._closeSettings());
+    this._els.settings.addEventListener("click", (ev) => { if (ev.target === this._els.settings) this._closeSettings(); });
+    this._els.spSave.addEventListener("click", () => this._saveSettings());
+    this._els.spBody.addEventListener("click", (ev) => {
+      const chip = ev.target.closest(".sc[data-store]");
+      if (chip) {
+        const id = chip.dataset.store;
+        if (this._set.stores.has(id)) this._set.stores.delete(id); else this._set.stores.add(id);
+        chip.classList.toggle("on", this._set.stores.has(id));
+        this._els.spBody.querySelector(".sel-count").textContent = this._set.stores.size;
+        return;
+      }
+      const li = ev.target.closest(".li[data-list]");
+      if (li) {
+        this._set.list_uuid = li.dataset.list;
+        for (const x of this._els.spBody.querySelectorAll(".li")) x.classList.toggle("on", x === li);
+        return;
+      }
+      if (ev.target.closest("#sp-login")) this._settingsLogin();
+    });
+    this._els.spBody.addEventListener("input", (ev) => {
+      if (ev.target.id === "sp-search") this._filterStores(ev.target.value);
+    });
+    this._els.spBody.addEventListener("error", (ev) => {
+      const img = ev.target;
+      if (img.tagName === "IMG" && img.dataset.cls) {
+        img.outerHTML = `<span class="${img.dataset.cls} sletter" style="--h:${img.dataset.hue}">${esc(img.dataset.letter)}</span>`;
+      }
+    }, true);
+
     this._sig = "";
     this._seen = new Set();
     this._renderHeader();
     this._renderItems();
+  }
+
+  // ------------------------------------------------------------- Einstellungen
+  async _openSettings() {
+    this._els.settings.hidden = false;
+    this._els.spBody.innerHTML = `<div class="sp-loading">Einstellungen werden geladen …</div>`;
+    this._els.spMsg.textContent = "";
+    this._els.spSave.disabled = true;
+    try {
+      const r = await this._hass.callWS({ type: "einkaufsliste/settings/get", entity_id: this._config.entity });
+      this._set = {
+        catalog: r.catalog, stores: new Set(r.stores), custom_stores: r.custom_stores || "",
+        email: r.email, list_uuid: r.list_uuid, lists: r.lists || [], lists_error: r.lists_error,
+        scan_interval: r.scan_interval, origEmail: r.email,
+      };
+      this._renderSettings();
+      this._els.spSave.disabled = false;
+    } catch (e) {
+      const admin = e && (e.code === "unauthorized" || /unauthor/i.test(e.message || ""));
+      this._els.spBody.innerHTML = `<div class="error">${admin
+        ? "Nur Administratoren können die Einstellungen ändern."
+        : esc(e?.message || "Einstellungen konnten nicht geladen werden. Ist die Integration auf Version 1.3.0 aktualisiert und Home Assistant neu gestartet?")}</div>`;
+    }
+  }
+
+  _closeSettings() { this._els.settings.hidden = true; }
+
+  _renderSettings() {
+    const st = this._set;
+    const chips = st.catalog.map((c) => `<button type="button" class="sc ${st.stores.has(c.id) ? "on" : ""}" data-store="${esc(c.id)}"
+        data-search="${esc(foldKey(c.name))}">${storeLogo(c)}<span>${esc(c.name)}</span><i>${ICONS.check}</i></button>`).join("");
+    this._els.spBody.innerHTML = `
+      <section>
+        <h4>🏬 Deine Geschäfte <span class="pill"><span class="sel-count">${st.stores.size}</span> gewählt</span></h4>
+        <p class="sp-hint">Diese Geschäfte kannst du Artikeln zuordnen (lange auf einen Artikel drücken).</p>
+        <input id="sp-search" class="sp-input" placeholder="Geschäft suchen …">
+        <div class="sc-grid">${chips}</div>
+        <label class="sp-label">Weitere Geschäfte (mit Komma getrennt)</label>
+        <input id="sp-custom" class="sp-input" placeholder="z. B. Hofladen Meier, Bioladen" value="${esc(st.custom_stores)}">
+      </section>
+      <section>
+        <h4>🔑 Bring!-Zugang</h4>
+        <label class="sp-label">E-Mail</label>
+        <input id="sp-email" class="sp-input" type="email" autocomplete="username" value="${esc(st.email)}">
+        <label class="sp-label">Passwort</label>
+        <input id="sp-pass" class="sp-input" type="password" autocomplete="new-password" placeholder="•••••••• (unverändert lassen)">
+        <button type="button" class="sp-btn" id="sp-login">Anmelden &amp; Listen laden</button>
+      </section>
+      <section>
+        <h4>📝 Liste</h4>
+        <div class="lists">${this._listsHtml()}</div>
+      </section>
+      <section>
+        <h4>🔄 Aktualisierung</h4>
+        <label class="sp-label">Bring alle … Sekunden abfragen</label>
+        <input id="sp-interval" class="sp-input sp-num" type="number" min="15" max="3600" step="5" value="${esc(st.scan_interval)}">
+      </section>`;
+  }
+
+  _listsHtml() {
+    const st = this._set;
+    if (st.lists_error) return `<div class="error">${esc(st.lists_error)}</div>`;
+    if (!st.lists.length) return `<div class="sp-hint">Keine Listen gefunden.</div>`;
+    return st.lists.map((l) => `<button type="button" class="li ${l.uuid === st.list_uuid ? "on" : ""}" data-list="${esc(l.uuid)}">
+      <span class="li-dot"></span><span>${esc(l.name)}</span></button>`).join("");
+  }
+
+  _filterStores(q) {
+    const k = foldKey(q);
+    for (const el of this._els.spBody.querySelectorAll(".sc")) el.hidden = k && !el.dataset.search.includes(k);
+  }
+
+  async _settingsLogin() {
+    const email = this._els.spBody.querySelector("#sp-email").value.trim();
+    const password = this._els.spBody.querySelector("#sp-pass").value;
+    const box = this._els.spBody.querySelector(".lists");
+    const btn = this._els.spBody.querySelector("#sp-login");
+    btn.disabled = true; btn.textContent = "Anmeldung läuft …";
+    try {
+      const msg = { type: "einkaufsliste/settings/lists", entity_id: this._config.entity, email };
+      if (password) msg.password = password;
+      const r = await this._hass.callWS(msg);
+      this._set.lists = r.lists || [];
+      this._set.lists_error = null;
+      if (!this._set.lists.some((l) => l.uuid === this._set.list_uuid)) this._set.list_uuid = this._set.lists[0]?.uuid || "";
+    } catch (e) {
+      this._set.lists = [];
+      this._set.lists_error = e?.message || "Anmeldung fehlgeschlagen.";
+    }
+    box.innerHTML = this._listsHtml();
+    btn.disabled = false; btn.textContent = "Anmelden & Listen laden";
+  }
+
+  async _saveSettings() {
+    const body = this._els.spBody;
+    const msg = {
+      type: "einkaufsliste/settings/save",
+      entity_id: this._config.entity,
+      stores: [...this._set.stores],
+      custom_stores: body.querySelector("#sp-custom").value,
+      email: body.querySelector("#sp-email").value.trim(),
+      scan_interval: Number(body.querySelector("#sp-interval").value) || 60,
+    };
+    const pw = body.querySelector("#sp-pass").value;
+    if (pw) msg.password = pw;
+    if (this._set.list_uuid) msg.list_uuid = this._set.list_uuid;
+    this._els.spSave.disabled = true;
+    this._els.spMsg.textContent = "Wird gespeichert …";
+    try {
+      await this._hass.callWS(msg);
+      this._els.spMsg.textContent = "";
+      this._closeSettings();
+      // Integration lädt neu → Liste neu abonnieren
+      this._unsubscribe();
+      this._loaded = false;
+      this._sig = "";
+      this._renderItems();
+      this._resubscribe(0);
+    } catch (e) {
+      this._els.spMsg.textContent = e?.message || "Speichern fehlgeschlagen.";
+    }
+    this._els.spSave.disabled = false;
+  }
+
+  _resubscribe(attempt) {
+    setTimeout(async () => {
+      this._unsubscribe();
+      await this._subscribe();
+      if (!this._unsub && attempt < 10) this._resubscribe(attempt + 1);
+    }, 2500);
   }
 
   _markLongPress() {

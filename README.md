@@ -27,7 +27,7 @@ Ordner `custom_components/einkaufsliste` nach `config/custom_components/` kopier
 2. Bring!-E-Mail und Passwort eingeben (wer sich bei Bring mit Google/Apple anmeldet, legt zuerst in der Bring-App ein Passwort fest).
 3. Liste auswählen – fertig.
 
-Über **Konfigurieren** kannst du später eine andere Liste wählen und das Aktualisierungsintervall ändern.
+Alle Einstellungen (Geschäfte, Bring-Zugang, Liste, Aktualisierung) findest du auch direkt in der Karte über das **Zahnrad ⚙️** oben rechts – oder unter **Konfigurieren** bei der Integration. Ändern dürfen das nur Administratoren.
 
 ## Geschäfte
 1. **Einstellungen → Geräte & Dienste → Einkaufsliste (Bring!) → Konfigurieren** → unter „Deine Geschäfte“ auswählen (eigene Geschäfte mit Komma getrennt ergänzen).

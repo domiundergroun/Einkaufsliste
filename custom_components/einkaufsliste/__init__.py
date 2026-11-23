@@ -16,6 +16,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.typing import ConfigType
 
+from . import websocket
 from .api import BringAuthError, BringClient, BringError
 from .const import CARD_FILENAME, DOMAIN, FRONTEND_URL_BASE, VERSION
 from .coordinator import EinkaufslisteCoordinator
@@ -35,6 +36,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         [StaticPathConfig(FRONTEND_URL_BASE, str(frontend_dir), False)]
     )
     add_extra_js_url(hass, f"{FRONTEND_URL_BASE}/{CARD_FILENAME}?v={VERSION}")
+    websocket.async_register(hass)
     return True
 
 

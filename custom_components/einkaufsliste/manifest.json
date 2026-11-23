@@ -3,11 +3,11 @@
   "name": "Einkaufsliste (Bring!)",
   "codeowners": ["@domiundergroun"],
   "config_flow": true,
-  "dependencies": ["http", "frontend"],
+  "dependencies": ["http", "frontend", "websocket_api"],
   "documentation": "https://github.com/domiundergroun/Einkaufsliste",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/domiundergroun/Einkaufsliste/issues",
   "requirements": [],
-  "version": "1.2.0"
+  "version": "1.3.0"
 }
