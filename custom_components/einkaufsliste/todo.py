@@ -104,6 +104,21 @@ class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEnt
             "stores": self.coordinator.stores,
             "assignments": dict(self.coordinator.assignments),
             "checked": {uid: round(ts) for uid, ts in self.coordinator.checked.items()},
+            **self._sync_attrs(),
+        }
+
+    def _sync_attrs(self) -> dict[str, Any]:
+        sync = self.coordinator.sync
+        if sync is None:
+            return {"sync": []}
+        partners = []
+        for eid in sync.partners:
+            state = self.hass.states.get(eid)
+            partners.append({"entity_id": eid, "name": state.name if state else eid})
+        return {
+            "sync": partners,
+            "sync_last": round(sync.last_sync) if sync.last_sync else None,
+            "sync_error": sync.last_error,
         }
 
     async def async_set_store(self, item: str, store: str | None = "") -> None:

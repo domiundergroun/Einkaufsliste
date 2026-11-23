@@ -40,6 +40,7 @@ class EinkaufslisteCoordinator(DataUpdateCoordinator[BringListData]):
         )
         self.entry = entry
         self.backend = backend
+        self.sync = None  # ListSync, falls Synchronisierung aktiv
         self._store: Store[dict] = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self.assignments: dict[str, str] = {}
         # Heute abgehakte Artikel (uuid -> Zeitstempel); bleiben bis 0 Uhr durchgestrichen sichtbar

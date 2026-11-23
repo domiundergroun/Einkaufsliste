@@ -36,6 +36,7 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_SOURCE,
     CONF_STORES,
+    CONF_SYNC_TARGETS,
     CONF_TARGET_ENTITY,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -254,6 +255,7 @@ class EinkaufslisteOptionsFlow(OptionsFlow):
                     CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
                     CONF_STORES: list(user_input.get(CONF_STORES, [])),
                     CONF_CUSTOM_STORES: (user_input.get(CONF_CUSTOM_STORES) or "").strip(),
+                    CONF_SYNC_TARGETS: list(user_input.get(CONF_SYNC_TARGETS, [])),
                 }
             )
 
@@ -281,6 +283,7 @@ class EinkaufslisteOptionsFlow(OptionsFlow):
                         CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
                         CONF_STORES: list(user_input.get(CONF_STORES, [])),
                         CONF_CUSTOM_STORES: (user_input.get(CONF_CUSTOM_STORES) or "").strip(),
+                        CONF_SYNC_TARGETS: list(user_input.get(CONF_SYNC_TARGETS, [])),
                     }
                 )
 
@@ -307,6 +310,20 @@ class EinkaufslisteOptionsFlow(OptionsFlow):
                         CONF_CUSTOM_STORES,
                         description={"suggested_value": entry.options.get(CONF_CUSTOM_STORES, "")},
                     ): TextSelector(TextSelectorConfig()),
+                    vol.Optional(
+                        CONF_SYNC_TARGETS, default=entry.options.get(CONF_SYNC_TARGETS, [])
+                    ): EntitySelector(
+                        EntitySelectorConfig(
+                            domain="todo",
+                            multiple=True,
+                            exclude_entities=[
+                                e.entity_id
+                                for e in er.async_get(self.hass).entities.values()
+                                if e.platform == DOMAIN
+                            ]
+                            + ([entry.data[CONF_TARGET_ENTITY]] if not is_bring else []),
+                        )
+                    ),
                     vol.Required(
                         CONF_SCAN_INTERVAL,
                         default=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),

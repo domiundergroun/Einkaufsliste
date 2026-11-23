@@ -37,6 +37,15 @@ Unter ⚙️ → Listen → Home Assistant kannst du jede vorhandene Liste (z. B
 
 Alle Einstellungen (Geschäfte, Listen-Quelle, Bring-Zugang, Aktualisierung) findest du auch direkt in der Karte über das **Zahnrad ⚙️** oben rechts – oder unter **Konfigurieren** bei der Integration. Ändern dürfen das nur Administratoren.
 
+## Synchronisieren (z. B. Alexa ↔ Bring!)
+Unter ⚙️ → Listen → **Synchronisieren** wählst du weitere Listen, die in **beide Richtungen** mit deiner Hauptliste abgeglichen werden: Hinzufügen, Ändern, Abhaken und Löschen.
+
+- Zuordnung über den Artikelnamen (Groß-/Kleinschreibung egal).
+- Listen ohne Beschreibungsfeld (z. B. Alexa) bekommen die Menge in Klammern: „Milch (2 Liter)“.
+- Beim ersten Abgleich werden beide Listen zusammengeführt; bereits erledigte Artikel (z. B. Bring „Zuletzt gekauft“) werden nicht kopiert.
+- Ändern beide Seiten denselben Artikel gleichzeitig, gewinnt die Hauptliste.
+- Verzögerung: so lange, wie die Listen zum Aktualisieren brauchen (Bring: dein Intervall, Alexa: je nach Integration).
+
 ## Geschäfte
 1. **Einstellungen → Geräte & Dienste → Einkaufsliste (Bring!) → Konfigurieren** → unter „Deine Geschäfte“ auswählen (eigene Geschäfte mit Komma getrennt ergänzen).
 2. In der Karte lange auf einen Artikel drücken → Geschäft wählen.

@@ -59,11 +59,13 @@
           "list_uuid": "Liste",
           "scan_interval": "Aktualisierungsintervall",
           "stores": "Deine Geschäfte",
-          "custom_stores": "Weitere Geschäfte (mit Komma getrennt)"
+          "custom_stores": "Weitere Geschäfte (mit Komma getrennt)",
+          "sync_targets": "Synchronisieren mit"
         },
         "data_description": {
           "stores": "Diese Geschäfte kannst du Artikeln in der Karte zuordnen (lange auf einen Artikel drücken). Für jedes Geschäft mit zugeordneten Artikeln erscheint ein eigener Reiter.",
-          "custom_stores": "z. B. Hofladen Meier, Bioladen"
+          "custom_stores": "z. B. Hofladen Meier, Bioladen",
+          "sync_targets": "Diese Listen werden in beide Richtungen mit der Hauptliste abgeglichen (z. B. Alexa-Einkaufsliste)."
         }
       }
     },

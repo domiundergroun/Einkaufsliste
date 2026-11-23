@@ -22,6 +22,7 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_SOURCE,
     CONF_STORES,
+    CONF_SYNC_TARGETS,
     CONF_TARGET_ENTITY,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -121,6 +122,7 @@ async def ws_get_settings(hass: HomeAssistant, connection: websocket_api.ActiveC
             "alexa_configured": bool(hass.config_entries.async_entries("alexa_devices")),
             "alexa_lists": alexa,
             "ha_lists": other,
+            "sync_targets": list(entry.options.get(CONF_SYNC_TARGETS, [])),
         },
     )
 
@@ -204,6 +206,7 @@ async def ws_create_list(hass: HomeAssistant, connection: websocket_api.ActiveCo
         vol.Optional("password"): str,
         vol.Optional("list_uuid"): str,
         vol.Optional("scan_interval"): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL, max=3600)),
+        vol.Optional("sync_targets"): [str],
     }
 )
 @websocket_api.require_admin
@@ -290,6 +293,15 @@ async def ws_save_settings(hass: HomeAssistant, connection: websocket_api.Active
     options[CONF_CUSTOM_STORES] = msg.get("custom_stores", "").strip()
     if "scan_interval" in msg:
         options[CONF_SCAN_INTERVAL] = msg["scan_interval"]
+    if "sync_targets" in msg:
+        reg = er.async_get(hass)
+        main_target = data.get(CONF_TARGET_ENTITY) if data.get(CONF_SOURCE) == SOURCE_ENTITY else None
+        targets = []
+        for eid in msg["sync_targets"]:
+            ent = reg.async_get(eid)
+            if eid.startswith("todo.") and eid != main_target and not (ent and ent.platform == DOMAIN) and eid not in targets:
+                targets.append(eid)
+        options[CONF_SYNC_TARGETS] = targets
 
     hass.config_entries.async_update_entry(
         entry, data=data, options=options, title=title, unique_id=unique_id

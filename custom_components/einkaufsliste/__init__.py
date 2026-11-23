@@ -23,6 +23,7 @@ from .const import (
     CARD_FILENAME,
     CONF_LIST_UUID,
     CONF_SOURCE,
+    CONF_SYNC_TARGETS,
     CONF_TARGET_ENTITY,
     DOMAIN,
     FRONTEND_URL_BASE,
@@ -30,6 +31,7 @@ from .const import (
     VERSION,
 )
 from .coordinator import EinkaufslisteCoordinator
+from .sync import ListSync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,6 +84,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: EinkaufslisteConfigEntry
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
+    # Synchronisierung mit weiteren Listen (z. B. Alexa ↔ Bring!)
+    partners = [
+        p
+        for p in entry.options.get(CONF_SYNC_TARGETS, [])
+        if p and p != entry.data.get(CONF_TARGET_ENTITY)
+    ]
+    if partners:
+        sync = ListSync(hass, coordinator, partners)
+        coordinator.sync = sync
+        await sync.async_start()
+        entry.async_on_unload(sync.async_stop)
+
     async def _midnight(_now) -> None:
         await coordinator.async_midnight()
 
@@ -100,6 +114,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     from .const import STORAGE_VERSION
 
     await Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}").async_remove()
+    await Store(hass, STORAGE_VERSION, f"{DOMAIN}.sync.{entry.entry_id}").async_remove()
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: EinkaufslisteConfigEntry) -> bool:

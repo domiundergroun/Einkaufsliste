@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.4.0";
+const CARD_VERSION = "1.5.0";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -287,8 +287,8 @@ header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .titles { flex: 1; min-width: 0; }
 .title { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; color: var(--primary-text-color);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sub { font-size: 0.85rem; color: var(--secondary-text-color); margin-top: 1px; }
-.sub b { color: var(--acc); font-weight: 600; }
+.titles .sub { font-size: 0.85rem; color: var(--secondary-text-color); margin-top: 1px; }
+.titles .sub b { color: var(--acc); font-weight: 600; }
 .icon-btn { border: 0; background: transparent; color: var(--secondary-text-color); width: 38px; height: 38px;
   border-radius: 12px; display: grid; place-items: center; cursor: pointer; transition: background .2s, color .2s; }
 .icon-btn:hover { background: var(--secondary-background-color); color: var(--primary-text-color); }
@@ -579,6 +579,21 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
 .sp-btn.ghost { background: transparent; color: var(--secondary-text-color); box-shadow: inset 0 0 0 1.5px var(--divider-color); }
 .sp-row { display: flex; gap: 8px; align-items: center; }
 .sp-row .sp-btn { margin-top: 0; flex: none; }
+.sy-list { display: flex; flex-direction: column; gap: 6px; }
+.sy { display: flex; align-items: center; gap: 10px; border: 1.5px solid var(--divider-color); background: transparent; border-radius: 12px;
+  padding: 10px 12px; font: inherit; color: var(--primary-text-color); cursor: pointer; text-align: left; }
+.sy i { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--divider-color); display: grid; place-items: center;
+  color: transparent; flex: none; box-sizing: border-box; }
+.sy i svg { width: 14px; height: 14px; }
+.sy.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 10%, transparent); }
+.sy.on i { background: var(--acc); border-color: var(--acc); color: #fff; }
+.sy-t { display: flex; flex-direction: column; min-width: 0; }
+.sy-t small { font-size: .72rem; color: var(--secondary-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sync-tag { display: table; margin-top: 4px; font-size: .74rem; padding: 1px 8px; border-radius: 999px; vertical-align: 1px;
+  background: color-mix(in srgb, var(--acc) 12%, transparent); color: var(--acc); font-weight: 600; max-width: 100%; box-sizing: border-box;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sync-tag.err { background: color-mix(in srgb, var(--error-color, #db4437) 14%, transparent); color: var(--error-color, #db4437); }
+
 `;
 
 class EinkaufslisteCard extends HTMLElement {
@@ -670,6 +685,7 @@ class EinkaufslisteCard extends HTMLElement {
     this._hass = hass;
     if (first) this._subscribe();
     this._renderHeader();
+    this._renderSub();
     this._renderItems();
   }
 
@@ -1099,6 +1115,14 @@ class EinkaufslisteCard extends HTMLElement {
         this._els.spBody.querySelector(".sel-count").textContent = this._set.stores.size;
         return;
       }
+      const sy = ev.target.closest(".sy[data-sync]");
+      if (sy) {
+        const id = sy.dataset.sync;
+        if (this._set.sync.has(id)) this._set.sync.delete(id); else this._set.sync.add(id);
+        sy.classList.toggle("on", this._set.sync.has(id));
+        this._els.spBody.querySelector(".sync-sum").textContent = this._syncLabel();
+        return;
+      }
       const li = ev.target.closest(".li");
       if (li) {
         if (li.dataset.list) { this._set.source = "bring"; this._set.list_uuid = li.dataset.list; }
@@ -1144,6 +1168,7 @@ class EinkaufslisteCard extends HTMLElement {
         scan_interval: r.scan_interval,
         source: r.source || "bring", list_uuid: r.list_uuid || "", target_entity: r.target_entity || "",
         alexa_configured: !!r.alexa_configured, alexa_lists: r.alexa_lists || [], ha_lists: r.ha_lists || [],
+        sync: new Set(r.sync_targets || []),
       };
       this._renderSettings();
       this._els.spSave.disabled = false;
@@ -1151,7 +1176,7 @@ class EinkaufslisteCard extends HTMLElement {
       const admin = e && (e.code === "unauthorized" || /unauthor/i.test(e.message || ""));
       this._els.spBody.innerHTML = `<div class="error">${admin
         ? "Nur Administratoren können die Einstellungen ändern."
-        : esc(e?.message || "Einstellungen konnten nicht geladen werden. Ist die Integration auf Version 1.4.0 aktualisiert und Home Assistant neu gestartet?")}</div>`;
+        : esc(e?.message || "Einstellungen konnten nicht geladen werden. Ist die Integration auf Version 1.5.0 aktualisiert und Home Assistant neu gestartet?")}</div>`;
     }
   }
 
@@ -1208,6 +1233,11 @@ class EinkaufslisteCard extends HTMLElement {
               <span class="acc-t">Home Assistant</span>${this._activeBadge("ha")}<span class="acc-chev">${ICONS.chevron}</span></summary>
             <div class="acc-body" id="ha-body">${this._haHtml()}</div>
           </details>
+          <details class="acc sub" data-src="sync">
+            <summary><span class="acc-ico">🔄</span><span class="acc-t">Synchronisieren</span>
+              <span class="acc-sub sync-sum">${esc(this._syncLabel())}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
+            <div class="acc-body" id="sync-body">${this._syncHtml()}</div>
+          </details>
         </div>
       </details>`;
   }
@@ -1239,6 +1269,35 @@ class EinkaufslisteCard extends HTMLElement {
     return lists.map((l) => `<button type="button" class="li ${st.source === "entity" && l.entity_id === st.target_entity ? "on" : ""}"
       data-ent="${esc(l.entity_id)}"><span class="li-dot"></span><span>${esc(l.name)}</span>
       <small class="li-id">${esc(l.entity_id)}</small></button>`).join("");
+  }
+
+  _syncCandidates() {
+    const st = this._set;
+    const main = st.source === "entity" ? st.target_entity : null;
+    return [
+      ...st.alexa_lists.map((l) => ({ ...l, group: "Alexa" })),
+      ...st.ha_lists.map((l) => ({ ...l, group: "Home Assistant" })),
+    ].filter((l) => l.entity_id !== main);
+  }
+
+  _syncLabel() {
+    const n = [...this._set.sync].filter((e) => this._syncCandidates().some((c) => c.entity_id === e)).length;
+    return n ? `${n} ${n === 1 ? "Liste" : "Listen"}` : "aus";
+  }
+
+  _syncHtml() {
+    const st = this._set;
+    const cands = this._syncCandidates();
+    const items = cands.length
+      ? cands.map((l) => `<button type="button" class="sy ${st.sync.has(l.entity_id) ? "on" : ""}" data-sync="${esc(l.entity_id)}">
+          <i>${ICONS.check}</i><span class="sy-t"><b>${esc(l.name)}</b><small>${esc(l.group)} · ${esc(l.entity_id)}</small></span></button>`).join("")
+      : `<p class="sp-hint">Keine weiteren Listen vorhanden. Melde dich z. B. bei Alexa an oder lege eine Liste in Home Assistant an.</p>`;
+    return `<p class="sp-hint">Gewählte Listen werden in <b>beide Richtungen</b> mit deiner Hauptliste
+      (<b>${esc(this._activeListLabel())}</b>) abgeglichen: Hinzufügen, Ändern, Abhaken und Löschen.
+      Beispiel: „Alexa, setz Milch auf die Einkaufsliste“ → Milch erscheint nach kurzer Zeit auch in Bring.</p>
+      <div class="sy-list">${items}</div>
+      <p class="sp-hint" style="margin-top:10px">ℹ️ Artikel werden über den Namen zugeordnet. Bei Listen ohne Beschreibungsfeld
+      steht die Menge in Klammern, z. B. „Milch (2 Liter)“. Bereits erledigte Artikel werden beim ersten Abgleich nicht kopiert.</p>`;
   }
 
   _alexaHtml() {
@@ -1278,6 +1337,10 @@ class EinkaufslisteCard extends HTMLElement {
     for (const b of body.querySelectorAll(".act-badge")) b.hidden = b.dataset.group !== g;
     const sum = body.querySelector(".list-sum");
     if (sum) sum.textContent = this._activeListLabel();
+    const syncBody = body.querySelector("#sync-body");
+    if (syncBody) syncBody.innerHTML = this._syncHtml();
+    const syncSum = body.querySelector(".sync-sum");
+    if (syncSum) syncSum.textContent = this._syncLabel();
   }
 
   _navigate(path) {
@@ -1365,6 +1428,7 @@ class EinkaufslisteCard extends HTMLElement {
     const pw = body.querySelector("#sp-pass").value;
     if (pw) msg.password = pw;
     msg.source = this._set.source;
+    msg.sync_targets = [...this._set.sync].filter((e) => this._syncCandidates().some((c) => c.entity_id === e));
     if (this._set.source === "bring") { if (this._set.list_uuid) msg.list_uuid = this._set.list_uuid; }
     else msg.target_entity = this._set.target_entity;
     if (!msg.email) delete msg.email;
@@ -1451,9 +1515,15 @@ class EinkaufslisteCard extends HTMLElement {
     const n = this._open().length;
     const d = this._checked().length;
     const done = d ? ` · ${d} erledigt` : "";
-    this._els.sub.innerHTML = !this._loaded
+    const sync = Array.isArray(this._attrs.sync) ? this._attrs.sync : [];
+    const syncHtml = sync.length
+      ? ` <span class="sync-tag ${this._attrs.sync_error ? "err" : ""}" title="${esc(this._attrs.sync_error
+          ? "Synchronisierung: " + this._attrs.sync_error
+          : "Synchron mit " + sync.map((x) => x.name).join(", "))}">🔄 ${esc(sync.map((x) => x.name).join(", "))}</span>`
+      : "";
+    this._els.sub.innerHTML = (!this._loaded
       ? "Wird geladen …"
-      : n === 0 ? `Alles erledigt${d ? " 🎉" : ""}` : `<b>${n}</b> Artikel auf der Liste${done}`;
+      : n === 0 ? `Alles erledigt${d ? " 🎉" : ""}` : `<b>${n}</b> Artikel auf der Liste${done}`) + syncHtml;
   }
 
   _isNew(item, scope) {
