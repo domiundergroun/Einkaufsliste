@@ -112,9 +112,8 @@ class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEnt
         if sync is None:
             return {"sync": []}
         partners = []
-        for eid in sync.partners:
-            state = self.hass.states.get(eid)
-            partners.append({"entity_id": eid, "name": state.name if state else eid})
+        for partner in sync.partners:
+            partners.append({"entity_id": partner.id, "name": partner.name})
         return {
             "sync": partners,
             "sync_last": round(sync.last_sync) if sync.last_sync else None,

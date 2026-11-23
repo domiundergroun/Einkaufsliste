@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "einkaufsliste"
-VERSION = "1.5.1"
+VERSION = "1.6.0"
 
 CONF_LIST_UUID = "list_uuid"
 CONF_LIST_NAME = "list_name"
@@ -13,6 +13,7 @@ CONF_CUSTOM_STORES = "custom_stores"
 CONF_SOURCE = "source"
 CONF_TARGET_ENTITY = "target_entity"
 CONF_SYNC_TARGETS = "sync_targets"
+CONF_SYNC_ENABLED = "sync_enabled"
 
 SOURCE_BRING = "bring"
 SOURCE_ENTITY = "entity"

@@ -12,16 +12,25 @@ import asyncio
 import logging
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.components.todo import TodoItemStatus, TodoListEntityFeature
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
-from homeassistant.helpers.event import async_call_later, async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_call_later,
+    async_track_state_change_event,
+    async_track_time_interval,
+)
 from homeassistant.helpers.storage import Store
 
-from .backends import todo_entity_object
+from .api import BringClient
+from .backends import BringBackend, todo_entity_object
 from .const import DOMAIN, STORAGE_VERSION
+
+BRING_PREFIX = "bring:"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -122,116 +131,69 @@ def plan(
     return actions, new_base
 
 
-# --------------------------------------------------------------------------- Ausführung
-class ListSync:
-    """Hält die Hauptliste (Coordinator) mit einer oder mehreren Partner-Listen synchron."""
+# --------------------------------------------------------------------------- Partner
+class EntityPartner:
+    """Partner: beliebige To-do-Liste in Home Assistant (z. B. Alexa-Einkaufsliste)."""
 
-    def __init__(self, hass: HomeAssistant, coordinator, partners: list[str]) -> None:
+    def __init__(self, hass: HomeAssistant, entity_id: str) -> None:
         self.hass = hass
-        self.coordinator = coordinator
-        self.partners = [p for p in partners if p]
-        self._store: Store[dict] = Store(
-            hass, STORAGE_VERSION, f"{DOMAIN}.sync.{coordinator.entry.entry_id}"
-        )
-        self._base: dict[str, dict[str, list]] = {}
-        # Erwartete, noch nicht bestätigte Schreibvorgänge: (seite, partner, key) -> (alter Zustand, Zeit)
-        self._expect: dict[tuple[str, str, str], tuple[tuple | None, float]] = {}
+        self.id = entity_id
+        self._item_unsub: CALLBACK_TYPE | None = None
         self._unsubs: list[CALLBACK_TYPE] = []
-        self._item_unsubs: dict[str, CALLBACK_TYPE] = {}
-        self._lock = asyncio.Lock()
-        self._scheduled: CALLBACK_TYPE | None = None
-        self.last_sync: float | None = None
-        self.last_error: str | None = None
-        self._notifying = False
 
-    # ------------------------------------------------------------------ Start/Stopp
-    async def async_start(self) -> None:
-        if not self.partners:
-            return
-        data = await self._store.async_load() or {}
-        self._base = {p: data.get(p, {}) for p in self.partners}
+    @property
+    def name(self) -> str:
+        state = self.hass.states.get(self.id)
+        return state.name if state else self.id
 
-        @callback
-        def _main_updated() -> None:
-            if not self._notifying:
-                self._schedule()
-
-        self._unsubs.append(self.coordinator.async_add_listener(_main_updated))
-
+    def start(self, on_change: Callable[[], None]) -> None:
         @callback
         def _state_changed(event: Event) -> None:
-            self._subscribe_items()
-            self._schedule()
+            self._subscribe(on_change)
+            on_change()
 
-        self._unsubs.append(async_track_state_change_event(self.hass, self.partners, _state_changed))
-        self._subscribe_items()
-        self._schedule(delay=5)
+        self._unsubs.append(async_track_state_change_event(self.hass, [self.id], _state_changed))
+        self._subscribe(on_change)
 
     @callback
-    def async_stop(self) -> None:
+    def _subscribe(self, on_change: Callable[[], None]) -> None:
+        if self._item_unsub is not None:
+            return
+        ent = todo_entity_object(self.hass, self.id)
+        if ent is not None and hasattr(ent, "async_subscribe_updates"):
+            try:
+                self._item_unsub = ent.async_subscribe_updates(lambda *_: on_change())
+            except Exception:  # noqa: BLE001
+                self._item_unsub = None
+
+    def stop(self) -> None:
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
-        for unsub in self._item_unsubs.values():
+        if self._item_unsub:
             try:
-                unsub()
+                self._item_unsub()
             except Exception:  # noqa: BLE001
                 pass
-        self._item_unsubs.clear()
-        if self._scheduled:
-            self._scheduled()
-            self._scheduled = None
+            self._item_unsub = None
 
-    @callback
-    def _subscribe_items(self) -> None:
-        for eid in self.partners:
-            if eid in self._item_unsubs:
-                continue
-            ent = todo_entity_object(self.hass, eid)
-            if ent is not None and hasattr(ent, "async_subscribe_updates"):
-                try:
-                    self._item_unsubs[eid] = ent.async_subscribe_updates(lambda *_: self._schedule())
-                except Exception:  # noqa: BLE001
-                    pass
-
-    @callback
-    def _schedule(self, delay: float = 2) -> None:
-        """Mehrere Änderungen kurz sammeln und dann einmal abgleichen."""
-        if self._scheduled:
-            self._scheduled()
-
-        @callback
-        def _run(_now) -> None:
-            self._scheduled = None
-            self.hass.async_create_task(self.async_sync())
-
-        self._scheduled = async_call_later(self.hass, delay, _run)
-
-    # ------------------------------------------------------------------ Snapshots
-    def _main_snapshot(self) -> dict[str, Entry]:
-        data = self.coordinator.data
-        result: dict[str, Entry] = {}
-        if data is None:
-            return result
-        for status, items in ((OPEN, data.purchase), (DONE, data.recently)):
-            for item in items:
-                key = norm_key(item.name)
-                if key and key not in result:
-                    result[key] = Entry(item.name, status, item.specification or "", item)
-        return result
-
-    def _partner_supports_description(self, eid: str) -> bool:
-        ent = todo_entity_object(self.hass, eid)
+    def _supports_description(self) -> bool:
+        ent = todo_entity_object(self.hass, self.id)
         feats = getattr(ent, "supported_features", 0) or 0
         return bool(feats & TodoListEntityFeature.SET_DESCRIPTION_ON_ITEM)
 
-    def _partner_snapshot(self, eid: str) -> dict[str, Entry] | None:
-        ent = todo_entity_object(self.hass, eid)
+    def _summary(self, name: str, spec: str) -> tuple[str, str | None]:
+        """Ohne Beschreibungsfeld steht die Menge in Klammern: „Milch (2 Liter)“."""
+        if self._supports_description():
+            return name, spec
+        return (f"{name} ({spec})" if spec else name), None
+
+    async def snapshot(self) -> dict[str, Entry] | None:
+        ent = todo_entity_object(self.hass, self.id)
         if ent is None or ent.todo_items is None:
             return None
-        use_desc = self._partner_supports_description(eid)
+        use_desc = self._supports_description()
         result: dict[str, Entry] = {}
-        # offene zuerst, damit sie bei Doppelungen gewinnen
         items = sorted(ent.todo_items, key=lambda i: i.status == TodoItemStatus.COMPLETED)
         for item in items:
             summary = (item.summary or "").strip()
@@ -250,24 +212,165 @@ class ListSync:
             result[key] = Entry(name, status, spec, item.uid or summary)
         return result
 
-    def _partner_summary(self, eid: str, name: str, spec: str) -> tuple[str, str | None]:
-        """Name/Beschreibung für den Partner (ohne Beschreibungsfeld: „Milch (2 Liter)“)."""
-        if self._partner_supports_description(eid):
-            return name, spec
-        return (f"{name} ({spec})" if spec else name), None
+    async def _todo(self, service: str, data: dict[str, Any]) -> None:
+        await self.hass.services.async_call("todo", service, {"entity_id": self.id, **data}, blocking=True)
+
+    async def add(self, name: str, spec: str) -> None:
+        summary, desc = self._summary(name, spec)
+        data: dict[str, Any] = {"item": summary}
+        if desc:
+            data["description"] = desc
+        await self._todo("add_item", data)
+
+    async def update(self, entry: Entry, status: str, spec: str) -> None:
+        summary, desc = self._summary(entry.name, spec)
+        data: dict[str, Any] = {"item": entry.ref, "status": "completed" if status == DONE else "needs_action"}
+        if desc is not None:
+            data["description"] = desc
+        elif summary != (f"{entry.name} ({entry.spec})" if entry.spec else entry.name):
+            data["rename"] = summary
+        await self._todo("update_item", data)
+
+    async def delete(self, entry: Entry) -> None:
+        await self._todo("remove_item", {"item": [entry.ref]})
+
+
+class BringPartner:
+    """Partner: eine weitere Bring!-Liste (mit den gespeicherten Bring-Zugangsdaten)."""
+
+    def __init__(self, hass: HomeAssistant, client: BringClient, list_uuid: str, interval: int) -> None:
+        self.hass = hass
+        self.id = f"{BRING_PREFIX}{list_uuid}"
+        self.backend = BringBackend(client, list_uuid)
+        self.interval = max(15, int(interval))
+        self.name = "Bring!"
+        self._unsub: CALLBACK_TYPE | None = None
+        self._data = None
+
+    def start(self, on_change: Callable[[], None]) -> None:
+        self._unsub = async_track_time_interval(
+            self.hass, lambda _now: on_change(), timedelta(seconds=self.interval)
+        )
+
+    def stop(self) -> None:
+        if self._unsub:
+            self._unsub()
+            self._unsub = None
+
+    async def snapshot(self) -> dict[str, Entry] | None:
+        if self.name == "Bring!":
+            try:
+                lists = await self.backend.client.get_lists()
+                match = next((l for l in lists if l["uuid"] == self.backend.list_uuid), None)
+                if match:
+                    self.name = f"Bring! · {match['name']}"
+            except Exception:  # noqa: BLE001
+                pass
+        self._data = await self.backend.async_fetch()
+        result: dict[str, Entry] = {}
+        for status, items in ((OPEN, self._data.purchase), (DONE, self._data.recently)):
+            for item in items:
+                key = norm_key(item.name)
+                if key and key not in result:
+                    result[key] = Entry(item.name, status, item.specification or "", item)
+        return result
+
+    async def add(self, name: str, spec: str) -> None:
+        await self.backend.async_add(self._data, name, spec, False)
+
+    async def update(self, entry: Entry, status: str, spec: str) -> None:
+        await self.backend.async_update(entry.ref, entry.ref.name, spec, status == DONE)
+
+    async def delete(self, entry: Entry) -> None:
+        await self.backend.async_delete([entry.ref])
+
+
+# --------------------------------------------------------------------------- Ausführung
+class ListSync:
+    """Hält die Hauptliste (Coordinator) mit einer oder mehreren Partner-Listen synchron."""
+
+    def __init__(self, hass: HomeAssistant, coordinator, partners: list) -> None:
+        self.hass = hass
+        self.coordinator = coordinator
+        self.partners = partners  # EntityPartner | BringPartner
+        self._store: Store[dict] = Store(
+            hass, STORAGE_VERSION, f"{DOMAIN}.sync.{coordinator.entry.entry_id}"
+        )
+        self._base: dict[str, dict[str, list]] = {}
+        # Erwartete, noch nicht bestätigte Schreibvorgänge: (seite, partner, key) -> (alter Zustand, Zeit)
+        self._expect: dict[tuple[str, str, str], tuple[tuple | None, float]] = {}
+        self._unsubs: list[CALLBACK_TYPE] = []
+        self._lock = asyncio.Lock()
+        self._scheduled: CALLBACK_TYPE | None = None
+        self.last_sync: float | None = None
+        self.last_error: str | None = None
+        self._notifying = False
+
+    # ------------------------------------------------------------------ Start/Stopp
+    async def async_start(self) -> None:
+        if not self.partners:
+            return
+        data = await self._store.async_load() or {}
+        self._base = {p.id: data.get(p.id, {}) for p in self.partners}
+
+        @callback
+        def _main_updated() -> None:
+            if not self._notifying:
+                self._schedule()
+
+        self._unsubs.append(self.coordinator.async_add_listener(_main_updated))
+        for partner in self.partners:
+            partner.start(self._schedule)
+        self._schedule(delay=5)
+
+    @callback
+    def async_stop(self) -> None:
+        for unsub in self._unsubs:
+            unsub()
+        self._unsubs.clear()
+        for partner in self.partners:
+            partner.stop()
+        if self._scheduled:
+            self._scheduled()
+            self._scheduled = None
+
+    @callback
+    def _schedule(self, delay: float = 2) -> None:
+        """Mehrere Änderungen kurz sammeln und dann einmal abgleichen."""
+        if self._scheduled:
+            self._scheduled()
+
+        @callback
+        def _run(_now) -> None:
+            self._scheduled = None
+            self.hass.async_create_task(self.async_sync())
+
+        self._scheduled = async_call_later(self.hass, delay, _run)
 
     # ------------------------------------------------------------------ Abgleich
-    def _skip_keys(self, eid: str, main: dict[str, Entry], partner: dict[str, Entry]) -> set[str]:
+    def _main_snapshot(self) -> dict[str, Entry]:
+        data = self.coordinator.data
+        result: dict[str, Entry] = {}
+        if data is None:
+            return result
+        for status, items in ((OPEN, data.purchase), (DONE, data.recently)):
+            for item in items:
+                key = norm_key(item.name)
+                if key and key not in result:
+                    result[key] = Entry(item.name, status, item.specification or "", item)
+        return result
+
+    def _skip_keys(self, pid: str, main: dict[str, Entry], partner: dict[str, Entry]) -> set[str]:
         """Schlüssel, deren eigener Schreibvorgang noch nicht sichtbar ist."""
         skip: set[str] = set()
         now = time.time()
-        for (side, pid, key), (old, ts) in list(self._expect.items()):
-            if pid != eid:
+        for (side, p, key), (old, ts) in list(self._expect.items()):
+            if p != pid:
                 continue
             snap = main if side == "main" else partner
             current = snap[key].state if key in snap else None
             if now - ts > GRACE_SECONDS or current != old:
-                del self._expect[(side, pid, key)]  # bestätigt (oder zu alt)
+                del self._expect[(side, p, key)]  # bestätigt (oder zu alt)
             else:
                 skip.add(key)
         return skip
@@ -277,13 +380,14 @@ class ListSync:
             self._schedule(delay=3)
             return
         async with self._lock:
-            try:
-                for eid in self.partners:
-                    await self._sync_partner(eid)
-                self.last_error = None
-            except Exception as err:  # noqa: BLE001
-                _LOGGER.warning("Synchronisierung fehlgeschlagen: %s", err)
-                self.last_error = str(err)
+            errors = []
+            for partner in self.partners:
+                try:
+                    await self._sync_partner(partner)
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.warning("Synchronisierung mit %s fehlgeschlagen: %s", partner.id, err)
+                    errors.append(f"{partner.name}: {err}")
+            self.last_error = "; ".join(errors) or None
             self.last_sync = time.time()
             await self._store.async_save(self._base)
             # Anzeige (letzter Abgleich) aktualisieren, ohne erneut einen Abgleich auszulösen
@@ -293,75 +397,51 @@ class ListSync:
             finally:
                 self._notifying = False
 
-    async def _sync_partner(self, eid: str) -> None:
-        partner = self._partner_snapshot(eid)
+    async def _sync_partner(self, partner) -> None:
+        pid = partner.id
+        snap = await partner.snapshot()
         main = self._main_snapshot()
-        if partner is None or self.coordinator.data is None:
+        if snap is None or self.coordinator.data is None:
             return
-        base = {k: tuple(v) for k, v in self._base.get(eid, {}).items()}
-        skip = self._skip_keys(eid, main, partner)
-        actions, new_base = plan(main, partner, base, skip)
-        self._base[eid] = {k: list(v) for k, v in new_base.items()}
+        base = {k: tuple(v) for k, v in self._base.get(pid, {}).items()}
+        skip = self._skip_keys(pid, main, snap)
+        actions, new_base = plan(main, snap, base, skip)
+        self._base[pid] = {k: list(v) for k, v in new_base.items()}
         if not actions:
             return
-        _LOGGER.debug("Sync %s: %s", eid, actions)
+        _LOGGER.debug("Sync %s: %s", pid, actions)
 
         backend = self.coordinator.backend
         main_changed = False
         now = time.time()
         for action in actions:
             kind = action[0]
+            key = action[1] if kind.endswith(("update", "delete")) else norm_key(action[1])
+            side = "main" if kind.startswith("main") else "partner"
+            current = (main if side == "main" else snap).get(key)
+            self._expect[(side, pid, key)] = (current.state if current else None, now)
             try:
                 if kind == "main_add":
-                    _, name, spec = action
-                    key = norm_key(name)
-                    self._expect[("main", eid, key)] = (main[key].state if key in main else None, now)
-                    await backend.async_add(self.coordinator.data, name, spec, False)
+                    await backend.async_add(self.coordinator.data, action[1], action[2], False)
                     main_changed = True
                 elif kind == "main_update":
-                    _, key, status, spec = action
                     m = main[key]
-                    self._expect[("main", eid, key)] = (m.state, now)
-                    await backend.async_update(m.ref, m.ref.name, spec, status == DONE)
+                    await backend.async_update(m.ref, m.ref.name, action[3], action[2] == DONE)
                     main_changed = True
                 elif kind == "main_delete":
-                    _, key = action
-                    self._expect[("main", eid, key)] = (main[key].state, now)
                     await backend.async_delete([main[key].ref])
                     main_changed = True
                 elif kind == "partner_add":
-                    _, name, spec = action
-                    key = norm_key(name)
-                    self._expect[("partner", eid, key)] = (partner[key].state if key in partner else None, now)
-                    summary, desc = self._partner_summary(eid, name, spec)
-                    data: dict[str, Any] = {"item": summary}
-                    if desc:
-                        data["description"] = desc
-                    await self._todo(eid, "add_item", data)
+                    await partner.add(action[1], action[2])
                 elif kind == "partner_update":
-                    _, key, status, spec = action
-                    p = partner[key]
-                    self._expect[("partner", eid, key)] = (p.state, now)
-                    summary, desc = self._partner_summary(eid, p.name, spec)
-                    data = {"item": p.ref, "status": "completed" if status == DONE else "needs_action"}
-                    if desc is not None:
-                        data["description"] = desc
-                    elif summary != (f"{p.name} ({p.spec})" if p.spec else p.name):
-                        data["rename"] = summary
-                    await self._todo(eid, "update_item", data)
+                    await partner.update(snap[key], action[2], action[3])
                 elif kind == "partner_delete":
-                    _, key = action
-                    self._expect[("partner", eid, key)] = (partner[key].state, now)
-                    await self._todo(eid, "remove_item", {"item": [partner[key].ref]})
+                    await partner.delete(snap[key])
             except Exception as err:  # noqa: BLE001
-                _LOGGER.warning("Sync-Aktion %s für %s fehlgeschlagen: %s", action, eid, err)
+                _LOGGER.warning("Sync-Aktion %s für %s fehlgeschlagen: %s", action, pid, err)
                 # Basis für diesen Artikel verwerfen → beim nächsten Lauf neu bewerten
-                key = action[1] if kind.endswith(("update", "delete")) else norm_key(action[1])
-                self._base[eid].pop(key, None)
-                self._expect.pop(("main" if kind.startswith("main") else "partner", eid, key), None)
+                self._base[pid].pop(key, None)
+                self._expect.pop((side, pid, key), None)
 
         if main_changed:
             await self.coordinator.async_refresh()
-
-    async def _todo(self, eid: str, service: str, data: dict[str, Any]) -> None:
-        await self.hass.services.async_call("todo", service, {"entity_id": eid, **data}, blocking=True)

@@ -22,16 +22,19 @@ from .backends import BringBackend, EntityBackend, ListBackend
 from .const import (
     CARD_FILENAME,
     CONF_LIST_UUID,
+    CONF_SCAN_INTERVAL,
     CONF_SOURCE,
+    CONF_SYNC_ENABLED,
     CONF_SYNC_TARGETS,
     CONF_TARGET_ENTITY,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     FRONTEND_URL_BASE,
     SOURCE_BRING,
     VERSION,
 )
 from .coordinator import EinkaufslisteCoordinator
-from .sync import ListSync
+from .sync import BRING_PREFIX, BringPartner, EntityPartner, ListSync
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,22 +88,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: EinkaufslisteConfigEntry
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     # Synchronisierung mit weiteren Listen (z. B. Alexa ↔ Bring!)
-    partners = [
-        p
-        for p in entry.options.get(CONF_SYNC_TARGETS, [])
-        if p and p != entry.data.get(CONF_TARGET_ENTITY)
-    ]
-    if partners:
-        sync = ListSync(hass, coordinator, partners)
-        coordinator.sync = sync
-        await sync.async_start()
-        entry.async_on_unload(sync.async_stop)
+    if entry.options.get(CONF_SYNC_ENABLED, True):
+        partners = _build_partners(hass, entry, backend)
+        if partners:
+            sync = ListSync(hass, coordinator, partners)
+            coordinator.sync = sync
+            await sync.async_start()
+            entry.async_on_unload(sync.async_stop)
 
     async def _midnight(_now) -> None:
         await coordinator.async_midnight()
 
     entry.async_on_unload(async_track_time_change(hass, _midnight, hour=0, minute=0, second=0))
     return True
+
+
+def _build_partners(hass: HomeAssistant, entry: ConfigEntry, backend: ListBackend) -> list:
+    """Partner-Listen aus den Optionen erzeugen (HA-Listen und Bring-Listen)."""
+    main_id = (
+        f"{BRING_PREFIX}{entry.data.get(CONF_LIST_UUID)}"
+        if entry.data.get(CONF_SOURCE, SOURCE_BRING) == SOURCE_BRING
+        else entry.data.get(CONF_TARGET_ENTITY)
+    )
+    interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    client = backend.client if isinstance(backend, BringBackend) else None
+    partners: list = []
+    for pid in entry.options.get(CONF_SYNC_TARGETS, []):
+        if not pid or pid == main_id:
+            continue
+        if pid.startswith(BRING_PREFIX):
+            if client is None:
+                if not (entry.data.get(CONF_EMAIL) and entry.data.get(CONF_PASSWORD)):
+                    _LOGGER.warning("Bring-Liste %s kann ohne Bring-Anmeldung nicht synchronisiert werden", pid)
+                    continue
+                client = BringClient(
+                    async_get_clientsession(hass), entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD]
+                )
+            partners.append(BringPartner(hass, client, pid[len(BRING_PREFIX):], interval))
+        else:
+            partners.append(EntityPartner(hass, pid))
+    return partners
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:

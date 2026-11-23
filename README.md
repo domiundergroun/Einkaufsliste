@@ -37,8 +37,10 @@ Unter ⚙️ → Listen → Home Assistant kannst du jede vorhandene Liste (z. B
 
 Alle Einstellungen (Geschäfte, Listen-Quelle, Bring-Zugang, Aktualisierung) findest du auch direkt in der Karte über das **Zahnrad ⚙️** oben rechts – oder unter **Konfigurieren** bei der Integration. Ändern dürfen das nur Administratoren.
 
-## Synchronisieren (z. B. Alexa ↔ Bring!)
-Unter ⚙️ → Listen → **Synchronisieren** wählst du weitere Listen, die in **beide Richtungen** mit deiner Hauptliste abgeglichen werden: Hinzufügen, Ändern, Abhaken und Löschen.
+## Hauptliste & Synchronisieren (z. B. Alexa ↔ Bring!)
+Unter ⚙️ → **Listen**:
+- **Hauptliste:** Kreis bei einer Liste aus Bring!, Alexa oder Home Assistant antippen – diese Liste zeigt die Karte an.
+- **Synchronisieren:** Schalter oben ein-/ausschalten. Aus = nur die Hauptliste ist aktiv. An = weitere Listen mit 🔄 ankreuzen; sie werden in **beide Richtungen** abgeglichen: Hinzufügen, Ändern, Abhaken und Löschen. Auch Bring-Listen können Partner sein (über deine Bring-Anmeldung).
 
 - Zuordnung über den Artikelnamen (Groß-/Kleinschreibung egal).
 - Listen ohne Beschreibungsfeld (z. B. Alexa) bekommen die Menge in Klammern: „Milch (2 Liter)“.

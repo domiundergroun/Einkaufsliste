@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.5.1";
+const CARD_VERSION = "1.6.0";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -594,6 +594,46 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sync-tag.err { background: color-mix(in srgb, var(--error-color, #db4437) 14%, transparent); color: var(--error-color, #db4437); }
 
+/* Listen: Hauptliste + Synchronisierung */
+.sw-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 16px; margin-bottom: 10px;
+  background: var(--secondary-background-color); }
+.sw-ico { font-size: 22px; }
+.sw-t { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.sw-t small { font-size: .78rem; color: var(--secondary-text-color); }
+.switch { width: 50px; height: 30px; border-radius: 999px; border: 0; padding: 3px; cursor: pointer; flex: none;
+  background: color-mix(in srgb, var(--secondary-text-color) 35%, transparent); transition: background .2s; }
+.switch span { display: block; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  transition: transform .2s; }
+.switch.on { background: var(--acc); }
+.switch.on span { transform: translateX(20px); }
+.legend { font-size: .76rem; }
+.sync-off .only-sync { display: none; }
+.lr { display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--divider-color); border-radius: 12px; padding: 4px 6px 4px 4px;
+  transition: border-color .15s, background .15s; }
+.lr + .lr { margin-top: 6px; }
+.lr-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: 0; background: transparent; cursor: pointer;
+  font: inherit; color: var(--primary-text-color); text-align: left; padding: 6px 6px; }
+.lr-t { display: flex; flex-direction: column; min-width: 0; }
+.lr-t b { font-weight: 600; }
+.lr-t small { font-size: .72rem; color: var(--secondary-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lr-badge { display: none; font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--acc); color: #fff; flex: none; }
+.lr.main { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 10%, transparent); }
+.lr.main .li-dot { border: 5px solid var(--acc); }
+.lr.main .lr-badge { display: inline-block; }
+.lr-sync { display: inline-flex; align-items: center; gap: 5px; border: 1.5px solid var(--divider-color); background: transparent; cursor: pointer;
+  border-radius: 10px; padding: 5px 8px; font: inherit; font-size: .85rem; color: var(--secondary-text-color); flex: none; }
+.lr-sync i { width: 16px; height: 16px; border-radius: 5px; border: 2px solid var(--divider-color); display: grid; place-items: center;
+  color: transparent; box-sizing: border-box; }
+.lr-sync i svg { width: 12px; height: 12px; }
+.lr.synced { border-color: color-mix(in srgb, var(--acc) 55%, var(--divider-color)); }
+.lr.synced .lr-sync { border-color: var(--acc); color: var(--acc); background: color-mix(in srgb, var(--acc) 10%, transparent); }
+.lr.synced .lr-sync i { background: var(--acc); border-color: var(--acc); color: #fff; }
+.sync-off .lr-sync, .lr.main .lr-sync { display: none; }
+.grp-badges { display: inline-flex; gap: 4px; }
+.sync-badge { font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--acc) 14%, transparent); color: var(--acc); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn-row .sp-btn { margin-left: 0; }
 `;
 
 class EinkaufslisteCard extends HTMLElement {
@@ -1119,18 +1159,18 @@ class EinkaufslisteCard extends HTMLElement {
         this._els.spBody.querySelector(".sel-count").textContent = this._set.stores.size;
         return;
       }
-      const sy = ev.target.closest(".sy[data-sync]");
-      if (sy) {
-        const id = sy.dataset.sync;
-        if (this._set.sync.has(id)) this._set.sync.delete(id); else this._set.sync.add(id);
-        sy.classList.toggle("on", this._set.sync.has(id));
-        this._els.spBody.querySelector(".sync-sum").textContent = this._syncLabel();
+      const act = ev.target.closest("[data-act]");
+      if (act) {
+        const id = act.dataset.id;
+        if (act.dataset.act === "main") {
+          this._set.main = id;
+        } else if (this._set.sync.has(id)) this._set.sync.delete(id);
+        else this._set.sync.add(id);
+        this._markSelection();
         return;
       }
-      const li = ev.target.closest(".li");
-      if (li) {
-        if (li.dataset.list) { this._set.source = "bring"; this._set.list_uuid = li.dataset.list; }
-        else { this._set.source = "entity"; this._set.target_entity = li.dataset.ent; }
+      if (ev.target.closest("#sync-switch")) {
+        this._set.sync_enabled = !this._set.sync_enabled;
         this._markSelection();
         return;
       }
@@ -1170,9 +1210,10 @@ class EinkaufslisteCard extends HTMLElement {
         catalog: r.catalog, stores: new Set(r.stores), custom_stores: r.custom_stores || "",
         email: r.email || "", has_password: !!r.has_password, lists: r.lists || [], lists_error: r.lists_error,
         scan_interval: r.scan_interval,
-        source: r.source || "bring", list_uuid: r.list_uuid || "", target_entity: r.target_entity || "",
+        main: (r.source || "bring") === "bring" ? `bring:${r.list_uuid || ""}` : r.target_entity || "",
         alexa_configured: !!r.alexa_configured, alexa_lists: r.alexa_lists || [], ha_lists: r.ha_lists || [],
         sync: new Set(r.sync_targets || []),
+        sync_enabled: r.sync_enabled !== false,
       };
       this._renderSettings();
       this._els.spSave.disabled = false;
@@ -1180,7 +1221,7 @@ class EinkaufslisteCard extends HTMLElement {
       const admin = e && (e.code === "unauthorized" || /unauthor/i.test(e.message || ""));
       this._els.spBody.innerHTML = `<div class="error">${admin
         ? "Nur Administratoren können die Einstellungen ändern."
-        : esc(e?.message || "Einstellungen konnten nicht geladen werden. Ist die Integration auf Version 1.5.0 aktualisiert und Home Assistant neu gestartet?")}</div>`;
+        : esc(e?.message || "Einstellungen konnten nicht geladen werden. Ist die Integration auf Version 1.6.0 aktualisiert und Home Assistant neu gestartet?")}</div>`;
     }
   }
 
@@ -1206,12 +1247,19 @@ class EinkaufslisteCard extends HTMLElement {
       </details>
       <details class="acc">
         <summary><span class="acc-ico">📝</span><span class="acc-t">Listen</span>
-          <span class="acc-sub list-sum">${esc(this._activeListLabel())}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
-        <div class="acc-body">
-          <p class="sp-hint">Wähle, welche Liste die Karte anzeigt – aus Bring!, Alexa oder Home Assistant.</p>
+          <span class="acc-sub list-sum">${esc(this._listsSummary())}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
+        <div class="acc-body lists-wrap ${st.sync_enabled ? "sync-on" : "sync-off"}">
+          <div class="sw-row">
+            <span class="sw-ico">🔄</span>
+            <span class="sw-t"><b>Synchronisieren</b><small class="sw-hint">${this._syncHint()}</small></span>
+            <button type="button" class="switch ${st.sync_enabled ? "on" : ""}" id="sync-switch" role="switch"
+              aria-checked="${st.sync_enabled}" title="Synchronisieren ein/aus"><span></span></button>
+          </div>
+          <p class="sp-hint legend">● Kreis antippen = <b>Hauptliste</b> (wird in der Karte angezeigt)<span class="only-sync"><br>
+            🔄 = wird mit der Hauptliste <b>synchronisiert</b> (in beide Richtungen)</span></p>
           <details class="acc sub" data-src="bring">
             <summary><span class="acc-ico">${storeLogo(bring)}</span><span class="acc-t">Bring!</span>
-              ${this._activeBadge("bring")}<span class="acc-sub">${esc(st.email)}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
+              <span class="grp-badges" data-group="bring"></span><span class="acc-sub">${esc(st.email)}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
             <div class="acc-body">
               <h5>🔑 Anmeldung</h5>
               <label class="sp-label">E-Mail</label>
@@ -1220,96 +1268,96 @@ class EinkaufslisteCard extends HTMLElement {
               <input id="sp-pass" class="sp-input" type="password" autocomplete="new-password"
                 placeholder="${st.has_password ? "•••••••• (unverändert lassen)" : "Bring!-Passwort"}">
               <button type="button" class="sp-btn" id="sp-login">Anmelden &amp; Listen laden</button>
-              <h5>📋 Bring-Liste</h5>
-              <div class="lists" id="bring-lists">${this._listsHtml()}</div>
-              <h5>🔄 Aktualisierung</h5>
+              <h5>📋 Bring-Listen</h5>
+              <div class="lists" id="bring-lists">${this._bringRowsHtml()}</div>
+              <h5>⏱️ Aktualisierung</h5>
               <label class="sp-label">Bring alle … Sekunden abfragen</label>
               <input id="sp-interval" class="sp-input sp-num" type="number" min="15" max="3600" step="5" value="${esc(st.scan_interval)}">
             </div>
           </details>
           <details class="acc sub" data-src="alexa">
             <summary><span class="acc-ico">${storeLogo({ name: "Alexa", domain: "alexa.amazon.com", emoji: "🔵" })}</span>
-              <span class="acc-t">Alexa</span>${this._activeBadge("alexa")}<span class="acc-chev">${ICONS.chevron}</span></summary>
+              <span class="acc-t">Alexa</span><span class="grp-badges" data-group="alexa"></span><span class="acc-chev">${ICONS.chevron}</span></summary>
             <div class="acc-body" id="alexa-body">${this._alexaHtml()}</div>
           </details>
           <details class="acc sub" data-src="ha">
             <summary><span class="acc-ico">${storeLogo({ name: "Home Assistant", domain: "home-assistant.io", emoji: "🏠" })}</span>
-              <span class="acc-t">Home Assistant</span>${this._activeBadge("ha")}<span class="acc-chev">${ICONS.chevron}</span></summary>
+              <span class="acc-t">Home Assistant</span><span class="grp-badges" data-group="ha"></span><span class="acc-chev">${ICONS.chevron}</span></summary>
             <div class="acc-body" id="ha-body">${this._haHtml()}</div>
-          </details>
-          <details class="acc sub" data-src="sync">
-            <summary><span class="acc-ico">🔄</span><span class="acc-t">Synchronisieren</span>
-              <span class="acc-sub sync-sum">${esc(this._syncLabel())}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
-            <div class="acc-body" id="sync-body">${this._syncHtml()}</div>
           </details>
         </div>
       </details>`;
+    this._markSelection();
   }
 
-  /** Welche Gruppe ist gerade gewählt? bring | alexa | ha */
-  _activeGroup() {
+  // ---- Listen: Hauptliste + Synchronisierung -------------------------------
+  /** Alle wählbaren Listen: [{id, name, group}] – Bring-Listen haben die id „bring:<uuid>“. */
+  _allLists() {
     const st = this._set;
-    if (st.source === "bring") return "bring";
-    return st.alexa_lists.some((l) => l.entity_id === st.target_entity) ? "alexa" : "ha";
-  }
-
-  _activeListLabel() {
-    const st = this._set;
-    if (st.source === "bring") {
-      const n = st.lists.find((l) => l.uuid === st.list_uuid)?.name;
-      return n ? `Bring! · ${n}` : "Bring!";
-    }
-    const all = [...st.alexa_lists, ...st.ha_lists];
-    const n = all.find((l) => l.entity_id === st.target_entity)?.name || st.target_entity;
-    return `${this._activeGroup() === "alexa" ? "Alexa" : "Home Assistant"} · ${n}`;
-  }
-
-  _activeBadge(group) {
-    return `<span class="act-badge" data-group="${group}" ${this._activeGroup() === group ? "" : "hidden"}>aktiv</span>`;
-  }
-
-  _entityListHtml(lists) {
-    const st = this._set;
-    return lists.map((l) => `<button type="button" class="li ${st.source === "entity" && l.entity_id === st.target_entity ? "on" : ""}"
-      data-ent="${esc(l.entity_id)}"><span class="li-dot"></span><span>${esc(l.name)}</span>
-      <small class="li-id">${esc(l.entity_id)}</small></button>`).join("");
-  }
-
-  _syncCandidates() {
-    const st = this._set;
-    const main = st.source === "entity" ? st.target_entity : null;
     return [
-      ...st.alexa_lists.map((l) => ({ ...l, group: "Alexa" })),
-      ...st.ha_lists.map((l) => ({ ...l, group: "Home Assistant" })),
-    ].filter((l) => l.entity_id !== main);
+      ...st.lists.map((l) => ({ id: `bring:${l.uuid}`, name: l.name, group: "bring" })),
+      ...st.alexa_lists.map((l) => ({ id: l.entity_id, name: l.name, group: "alexa" })),
+      ...st.ha_lists.map((l) => ({ id: l.entity_id, name: l.name, group: "ha" })),
+    ];
   }
 
-  _syncLabel() {
-    const n = [...this._set.sync].filter((e) => this._syncCandidates().some((c) => c.entity_id === e)).length;
-    return n ? `${n} ${n === 1 ? "Liste" : "Listen"}` : "aus";
+  _groupOf(id) {
+    if (!id) return null;
+    if (id.startsWith("bring:")) return "bring";
+    return this._set.alexa_lists.some((l) => l.entity_id === id) ? "alexa" : "ha";
   }
 
-  _syncHtml() {
+  _listName(id) {
+    const hit = this._allLists().find((l) => l.id === id);
+    const g = { bring: "Bring!", alexa: "Alexa", ha: "Home Assistant" }[this._groupOf(id)] || "";
+    return hit ? `${g} · ${hit.name}` : g || id;
+  }
+
+  _activeSync() {
     const st = this._set;
-    const cands = this._syncCandidates();
-    const items = cands.length
-      ? cands.map((l) => `<button type="button" class="sy ${st.sync.has(l.entity_id) ? "on" : ""}" data-sync="${esc(l.entity_id)}">
-          <i>${ICONS.check}</i><span class="sy-t"><b>${esc(l.name)}</b><small>${esc(l.group)} · ${esc(l.entity_id)}</small></span></button>`).join("")
-      : `<p class="sp-hint">Keine weiteren Listen vorhanden. Melde dich z. B. bei Alexa an oder lege eine Liste in Home Assistant an.</p>`;
-    return `<p class="sp-hint">Gewählte Listen werden in <b>beide Richtungen</b> mit deiner Hauptliste
-      (<b>${esc(this._activeListLabel())}</b>) abgeglichen: Hinzufügen, Ändern, Abhaken und Löschen.
-      Beispiel: „Alexa, setz Milch auf die Einkaufsliste“ → Milch erscheint nach kurzer Zeit auch in Bring.</p>
-      <div class="sy-list">${items}</div>
-      <p class="sp-hint" style="margin-top:10px">ℹ️ Artikel werden über den Namen zugeordnet. Bei Listen ohne Beschreibungsfeld
-      steht die Menge in Klammern, z. B. „Milch (2 Liter)“. Bereits erledigte Artikel werden beim ersten Abgleich nicht kopiert.</p>`;
+    const known = new Set(this._allLists().map((l) => l.id));
+    return [...st.sync].filter((id) => id !== st.main && (known.has(id) || id.startsWith("bring:")));
+  }
+
+  _listsSummary() {
+    const st = this._set;
+    const n = st.sync_enabled ? this._activeSync().length : 0;
+    return this._listName(st.main) + (n ? ` · 🔄 ${n}` : "");
+  }
+
+  _syncHint() {
+    const st = this._set;
+    if (!st.sync_enabled) return "Aus – nur die Hauptliste ist aktiv.";
+    const n = this._activeSync().length;
+    return n ? `An – ${n} ${n === 1 ? "Liste wird" : "Listen werden"} mit der Hauptliste abgeglichen.`
+      : "An – kreuze unten die Listen mit 🔄 an.";
+  }
+
+  _rowHtml(id, name, sub) {
+    return `<div class="lr" data-id="${esc(id)}">
+      <button type="button" class="lr-main" data-act="main" data-id="${esc(id)}" title="Als Hauptliste verwenden">
+        <span class="li-dot"></span><span class="lr-t"><b>${esc(name)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</span></button>
+      <span class="lr-badge">Hauptliste</span>
+      <button type="button" class="lr-sync" data-act="sync" data-id="${esc(id)}" title="Mit der Hauptliste synchronisieren">
+        <i>${ICONS.check}</i><span>🔄</span></button>
+    </div>`;
+  }
+
+  _bringRowsHtml() {
+    const st = this._set;
+    if (st.lists_error) return `<div class="error">${esc(st.lists_error)}</div>`;
+    if (!st.lists.length) {
+      return `<div class="sp-hint">${st.email ? "Keine Listen gefunden." : "Melde dich an, um deine Bring!-Listen zu sehen."}</div>`;
+    }
+    return st.lists.map((l) => this._rowHtml(`bring:${l.uuid}`, l.name, "")).join("");
   }
 
   _alexaHtml() {
     const st = this._set;
-    const login = `<button type="button" class="sp-btn" id="alexa-login">${st.alexa_configured ? "Weiteres Amazon-Konto anmelden" : "Bei Alexa anmelden"}</button>
-      <button type="button" class="sp-btn ghost" id="sp-reload">Listen neu laden</button>`;
+    const login = `<div class="btn-row"><button type="button" class="sp-btn" id="alexa-login">${st.alexa_configured ? "Weiteres Amazon-Konto anmelden" : "Bei Alexa anmelden"}</button>
+      <button type="button" class="sp-btn ghost" id="sp-reload">Listen neu laden</button></div>`;
     if (st.alexa_lists.length) {
-      return `<h5>📋 Alexa-Liste</h5><div class="lists">${this._entityListHtml(st.alexa_lists)}</div>
+      return `<h5>📋 Alexa-Listen</h5><div class="lists">${st.alexa_lists.map((l) => this._rowHtml(l.entity_id, l.name, l.entity_id)).join("")}</div>
         <p class="sp-hint" style="margin-top:12px">Anmeldung &amp; Konten verwaltest du in der Integration „Alexa Devices“.</p>${login}`;
     }
     return `<p class="sp-hint">${st.alexa_configured
@@ -1320,31 +1368,42 @@ class EinkaufslisteCard extends HTMLElement {
   _haHtml() {
     const st = this._set;
     const lists = st.ha_lists.length
-      ? `<div class="lists">${this._entityListHtml(st.ha_lists)}</div>`
+      ? `<div class="lists">${st.ha_lists.map((l) => this._rowHtml(l.entity_id, l.name, l.entity_id)).join("")}</div>`
       : `<p class="sp-hint">Noch keine Listen in Home Assistant.</p>`;
-    return `<h5>📋 Liste auswählen</h5>${lists}
+    return `<h5>📋 Listen</h5>${lists}
       <h5>➕ Neue Liste anlegen</h5>
       <div class="sp-row"><input id="ha-new" class="sp-input" placeholder="z. B. Einkauf Familie">
         <button type="button" class="sp-btn" id="ha-create">Anlegen</button></div>`;
   }
 
+  /** Markierungen (Hauptliste, Sync-Häkchen, Badges, Zusammenfassung) aktualisieren. */
   _markSelection() {
     const body = this._els.spBody;
     const st = this._set;
-    for (const x of body.querySelectorAll(".li")) {
-      const on = x.dataset.list
-        ? st.source === "bring" && x.dataset.list === st.list_uuid
-        : st.source === "entity" && x.dataset.ent === st.target_entity;
-      x.classList.toggle("on", on);
+    st.sync.delete(st.main);
+    const wrap = body.querySelector(".lists-wrap");
+    if (wrap) {
+      wrap.classList.toggle("sync-on", st.sync_enabled);
+      wrap.classList.toggle("sync-off", !st.sync_enabled);
     }
-    const g = this._activeGroup();
-    for (const b of body.querySelectorAll(".act-badge")) b.hidden = b.dataset.group !== g;
+    const sw = body.querySelector("#sync-switch");
+    if (sw) { sw.classList.toggle("on", st.sync_enabled); sw.setAttribute("aria-checked", String(st.sync_enabled)); }
+    for (const row of body.querySelectorAll(".lr")) {
+      const id = row.dataset.id;
+      row.classList.toggle("main", id === st.main);
+      row.classList.toggle("synced", st.sync_enabled && st.sync.has(id) && id !== st.main);
+    }
+    const mainGroup = this._groupOf(st.main);
+    for (const b of body.querySelectorAll(".grp-badges")) {
+      const g = b.dataset.group;
+      const n = st.sync_enabled ? this._activeSync().filter((id) => this._groupOf(id) === g).length : 0;
+      b.innerHTML = (g === mainGroup ? `<span class="act-badge">Hauptliste</span>` : "") +
+        (n ? `<span class="sync-badge">🔄 ${n}</span>` : "");
+    }
     const sum = body.querySelector(".list-sum");
-    if (sum) sum.textContent = this._activeListLabel();
-    const syncBody = body.querySelector("#sync-body");
-    if (syncBody) syncBody.innerHTML = this._syncHtml();
-    const syncSum = body.querySelector(".sync-sum");
-    if (syncSum) syncSum.textContent = this._syncLabel();
+    if (sum) sum.textContent = this._listsSummary();
+    const hint = body.querySelector(".sw-hint");
+    if (hint) hint.textContent = this._syncHint();
   }
 
   _navigate(path) {
@@ -1372,23 +1431,15 @@ class EinkaufslisteCard extends HTMLElement {
     try {
       const r = await this._hass.callWS({ type: "einkaufsliste/settings/create_list", entity_id: this._config.entity, name });
       this._set.ha_lists = r.ha_lists || this._set.ha_lists;
-      this._set.source = "entity";
-      this._set.target_entity = r.entity_id;
+      // Neue Liste: bei aktiver Synchronisierung als Partner, sonst als Hauptliste
+      if (this._set.sync_enabled) this._set.sync.add(r.entity_id);
+      else this._set.main = r.entity_id;
       this._els.spBody.querySelector("#ha-body").innerHTML = this._haHtml();
       this._markSelection();
     } catch (e) {
       this._els.spMsg.textContent = e?.message || "Liste konnte nicht angelegt werden.";
       btn.disabled = false; btn.textContent = "Anlegen";
     }
-  }
-
-  _listsHtml() {
-    const st = this._set;
-    if (st.lists_error) return `<div class="error">${esc(st.lists_error)}</div>`;
-    if (!st.lists.length) return `<div class="sp-hint">Keine Listen gefunden.</div>`;
-    if (!st.lists.length && !st.email) return `<div class="sp-hint">Melde dich an, um deine Bring!-Listen zu sehen.</div>`;
-    return st.lists.map((l) => `<button type="button" class="li ${st.source === "bring" && l.uuid === st.list_uuid ? "on" : ""}" data-list="${esc(l.uuid)}">
-      <span class="li-dot"></span><span>${esc(l.name)}</span></button>`).join("");
   }
 
   _filterStores(q) {
@@ -1399,7 +1450,7 @@ class EinkaufslisteCard extends HTMLElement {
   async _settingsLogin() {
     const email = this._els.spBody.querySelector("#sp-email").value.trim();
     const password = this._els.spBody.querySelector("#sp-pass").value;
-    const box = this._els.spBody.querySelector(".lists");
+    const box = this._els.spBody.querySelector("#bring-lists");
     const btn = this._els.spBody.querySelector("#sp-login");
     btn.disabled = true; btn.textContent = "Anmeldung läuft …";
     try {
@@ -1408,13 +1459,15 @@ class EinkaufslisteCard extends HTMLElement {
       const r = await this._hass.callWS(msg);
       this._set.lists = r.lists || [];
       this._set.lists_error = null;
-      if (!this._set.lists.some((l) => l.uuid === this._set.list_uuid)) this._set.list_uuid = this._set.lists[0]?.uuid || "";
+      this._set.email = email;
       this._set.has_password = this._set.has_password || !!password;
+      const ids = this._set.lists.map((l) => `bring:${l.uuid}`);
+      if (this._set.main.startsWith("bring:") && !ids.includes(this._set.main)) this._set.main = ids[0] || this._set.main;
     } catch (e) {
       this._set.lists = [];
       this._set.lists_error = e?.message || "Anmeldung fehlgeschlagen.";
     }
-    box.innerHTML = this._listsHtml();
+    box.innerHTML = this._bringRowsHtml();
     this._markSelection();
     btn.disabled = false; btn.textContent = "Anmelden & Listen laden";
   }
@@ -1431,10 +1484,12 @@ class EinkaufslisteCard extends HTMLElement {
     };
     const pw = body.querySelector("#sp-pass").value;
     if (pw) msg.password = pw;
-    msg.source = this._set.source;
-    msg.sync_targets = [...this._set.sync].filter((e) => this._syncCandidates().some((c) => c.entity_id === e));
-    if (this._set.source === "bring") { if (this._set.list_uuid) msg.list_uuid = this._set.list_uuid; }
-    else msg.target_entity = this._set.target_entity;
+    const main = this._set.main;
+    if (!main || main === "bring:") { this._els.spMsg.textContent = "Bitte eine Hauptliste auswählen."; return; }
+    if (main.startsWith("bring:")) { msg.source = "bring"; msg.list_uuid = main.slice(6); }
+    else { msg.source = "entity"; msg.target_entity = main; }
+    msg.sync_enabled = this._set.sync_enabled;
+    msg.sync_targets = this._activeSync();
     if (!msg.email) delete msg.email;
     this._els.spSave.disabled = true;
     this._els.spMsg.textContent = "Wird gespeichert …";

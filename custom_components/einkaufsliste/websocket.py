@@ -22,6 +22,7 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_SOURCE,
     CONF_STORES,
+    CONF_SYNC_ENABLED,
     CONF_SYNC_TARGETS,
     CONF_TARGET_ENTITY,
     DEFAULT_SCAN_INTERVAL,
@@ -123,6 +124,7 @@ async def ws_get_settings(hass: HomeAssistant, connection: websocket_api.ActiveC
             "alexa_lists": alexa,
             "ha_lists": other,
             "sync_targets": list(entry.options.get(CONF_SYNC_TARGETS, [])),
+            "sync_enabled": bool(entry.options.get(CONF_SYNC_ENABLED, True)),
         },
     )
 
@@ -207,6 +209,7 @@ async def ws_create_list(hass: HomeAssistant, connection: websocket_api.ActiveCo
         vol.Optional("list_uuid"): str,
         vol.Optional("scan_interval"): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL, max=3600)),
         vol.Optional("sync_targets"): [str],
+        vol.Optional("sync_enabled"): bool,
     }
 )
 @websocket_api.require_admin
@@ -293,14 +296,27 @@ async def ws_save_settings(hass: HomeAssistant, connection: websocket_api.Active
     options[CONF_CUSTOM_STORES] = msg.get("custom_stores", "").strip()
     if "scan_interval" in msg:
         options[CONF_SCAN_INTERVAL] = msg["scan_interval"]
+    if "sync_enabled" in msg:
+        options[CONF_SYNC_ENABLED] = msg["sync_enabled"]
     if "sync_targets" in msg:
         reg = er.async_get(hass)
-        main_target = data.get(CONF_TARGET_ENTITY) if data.get(CONF_SOURCE) == SOURCE_ENTITY else None
+        main_id = (
+            f"bring:{data.get(CONF_LIST_UUID)}"
+            if data.get(CONF_SOURCE) == SOURCE_BRING
+            else data.get(CONF_TARGET_ENTITY)
+        )
+        has_bring_login = bool(data.get(CONF_EMAIL) and data.get(CONF_PASSWORD))
         targets = []
-        for eid in msg["sync_targets"]:
-            ent = reg.async_get(eid)
-            if eid.startswith("todo.") and eid != main_target and not (ent and ent.platform == DOMAIN) and eid not in targets:
-                targets.append(eid)
+        for pid in msg["sync_targets"]:
+            if not pid or pid == main_id or pid in targets:
+                continue
+            if pid.startswith("bring:"):
+                if has_bring_login:
+                    targets.append(pid)
+                continue
+            ent = reg.async_get(pid)
+            if pid.startswith("todo.") and not (ent and ent.platform == DOMAIN):
+                targets.append(pid)
         options[CONF_SYNC_TARGETS] = targets
 
     hass.config_entries.async_update_entry(
