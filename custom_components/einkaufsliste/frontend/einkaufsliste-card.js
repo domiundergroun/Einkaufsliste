@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.1.0";
+const CARD_VERSION = "1.1.1";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -259,7 +259,7 @@ function storeLogo(store, cls = "slogo") {
   if (!store) return `<span class="${cls} semoji">🛒</span>`;
   if (store.domain) {
     return `<img class="${cls}" alt="" data-letter="${esc((store.name || "?").trim()[0].toUpperCase())}" data-hue="${hueFor(store.name || "")}" data-cls="${cls}"
-      src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(store.domain)}&sz=64">`;
+      src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(store.domain)}&sz=128">`;
   }
   return `<span class="${cls} semoji">${esc(store.emoji || "🏪")}</span>`;
 }
@@ -406,6 +406,14 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
 .tab .n { font-size: .74rem; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--primary-text-color) 10%, transparent); }
 .tab.active { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; box-shadow: 0 6px 14px -8px var(--acc); }
 .tab.active .n { background: rgba(255,255,255,.25); }
+.tab.icon-tab { position: relative; padding: 5px; width: 46px; height: 40px; justify-content: center; border-radius: 14px; overflow: visible; }
+.tab.icon-tab .slogo { width: 28px; height: 28px; border-radius: 8px; font-size: 18px; }
+.tab.icon-tab .n { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px;
+  display: grid; place-items: center; font-size: .68rem; line-height: 1; background: var(--acc); color: #fff;
+  border: 2px solid var(--ha-card-background, var(--card-background-color, #fff)); }
+.tab.icon-tab.active { background: color-mix(in srgb, var(--acc) 14%, transparent); box-shadow: inset 0 0 0 2px var(--acc); }
+.tab.icon-tab.active .n { background: var(--acc2); }
+.tabs { padding-top: 7px; }
 .slogo { width: 22px; height: 22px; border-radius: 7px; background: #fff; object-fit: contain; flex: none;
   box-shadow: 0 0 0 1px rgba(0,0,0,.06); display: inline-grid; place-items: center; font-size: 15px; line-height: 1; }
 .slogo.semoji { background: transparent; box-shadow: none; }
@@ -927,8 +935,8 @@ class EinkaufslisteCard extends HTMLElement {
     if (storeTabs.length) {
       els.tabs.innerHTML = [
         `<button class="tab ${this._tab ? "" : "active"}" data-tab=""><span class="slogo semoji">🛒</span>Allgemein<span class="n">${general.length}</span></button>`,
-        ...storeTabs.map((s) => `<button class="tab ${this._tab === s.id ? "active" : ""}" data-tab="${esc(s.id)}">
-          ${storeLogo(s)}${esc(s.name)}<span class="n">${byStore.get(s.id).length + general.length}</span></button>`),
+        ...storeTabs.map((s) => `<button class="tab icon-tab ${this._tab === s.id ? "active" : ""}" data-tab="${esc(s.id)}"
+          title="${esc(s.name)}" aria-label="${esc(s.name)}">${storeLogo(s)}<span class="n">${byStore.get(s.id).length}</span></button>`),
       ].join("");
     }
 
