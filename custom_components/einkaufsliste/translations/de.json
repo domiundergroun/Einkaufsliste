@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Bei Bring! anmelden",
+        "description": "Melde dich mit deinem Bring!-Konto an. Wenn du dich bei Bring sonst mit Google/Apple anmeldest, lege in der Bring-App zuerst ein Passwort fest.",
+        "data": {
+          "email": "E-Mail",
+          "password": "Passwort"
+        }
+      },
+      "list": {
+        "title": "Liste auswählen",
+        "description": "Welche Bring!-Liste soll angezeigt werden?",
+        "data": {
+          "list_uuid": "Liste"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Erneut anmelden",
+        "description": "Die Anmeldung für {email} ist abgelaufen. Bitte gib dein Bring!-Passwort erneut ein.",
+        "data": {
+          "password": "Passwort"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "E-Mail oder Passwort ist falsch.",
+      "cannot_connect": "Bring! ist gerade nicht erreichbar.",
+      "unknown": "Unerwarteter Fehler.",
+      "no_lists": "In diesem Konto wurde keine Liste gefunden."
+    },
+    "abort": {
+      "already_configured": "Diese Liste ist bereits eingerichtet.",
+      "reauth_successful": "Erneute Anmeldung erfolgreich."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Einkaufsliste – Einstellungen",
+        "description": "Wähle die angezeigte Bring!-Liste und wie oft sie aktualisiert wird.",
+        "data": {
+          "list_uuid": "Liste",
+          "scan_interval": "Aktualisierungsintervall"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Anmeldung bei Bring! fehlgeschlagen – bitte Integration neu anmelden.",
+      "cannot_connect": "Bring! ist gerade nicht erreichbar.",
+      "already_configured": "Diese Liste ist bereits als eigener Eintrag eingerichtet."
+    }
+  }
+}

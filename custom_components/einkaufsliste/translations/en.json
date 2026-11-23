@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sign in to Bring!",
+        "description": "Sign in with your Bring! account. If you normally use Google/Apple sign-in, set a password in the Bring! app first.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "list": {
+        "title": "Choose list",
+        "description": "Which Bring! list should be shown?",
+        "data": {
+          "list_uuid": "List"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Sign in again",
+        "description": "The sign-in for {email} expired. Please enter your Bring! password again.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password.",
+      "cannot_connect": "Bring! is not reachable.",
+      "unknown": "Unexpected error.",
+      "no_lists": "No lists found in this account."
+    },
+    "abort": {
+      "already_configured": "This list is already configured.",
+      "reauth_successful": "Re-authentication successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Shopping list – settings",
+        "description": "Choose the Bring! list and how often it refreshes.",
+        "data": {
+          "list_uuid": "List",
+          "scan_interval": "Update interval"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Sign-in to Bring! failed – please re-authenticate.",
+      "cannot_connect": "Bring! is not reachable.",
+      "already_configured": "This list is already configured as a separate entry."
+    }
+  }
+}
