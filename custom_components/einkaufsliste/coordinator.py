@@ -8,15 +8,14 @@ from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.storage import Store
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util, slugify
 
-from .api import BringAuthError, BringClient, BringError, BringListData
+from .api import BringListData
+from .backends import ListBackend
 from .const import (
     CONF_CUSTOM_STORES,
-    CONF_LIST_UUID,
     CONF_SCAN_INTERVAL,
     CONF_STORES,
     DEFAULT_SCAN_INTERVAL,
@@ -29,9 +28,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class EinkaufslisteCoordinator(DataUpdateCoordinator[BringListData]):
-    """Holt regelmäßig die Bring-Liste."""
+    """Holt die Liste aus der gewählten Quelle (Bring! oder eine Home-Assistant-Liste)."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, client: BringClient) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, backend: ListBackend) -> None:
         interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         super().__init__(
             hass,
@@ -40,7 +39,7 @@ class EinkaufslisteCoordinator(DataUpdateCoordinator[BringListData]):
             update_interval=timedelta(seconds=int(interval)),
         )
         self.entry = entry
-        self.client = client
+        self.backend = backend
         self._store: Store[dict] = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self.assignments: dict[str, str] = {}
         # Heute abgehakte Artikel (uuid -> Zeitstempel); bleiben bis 0 Uhr durchgestrichen sichtbar
@@ -101,19 +100,10 @@ class EinkaufslisteCoordinator(DataUpdateCoordinator[BringListData]):
                 )
         return result
 
-    @property
-    def list_uuid(self) -> str:
-        return self.entry.data[CONF_LIST_UUID]
-
     async def _async_update_data(self) -> BringListData:
-        try:
-            new = await self.client.get_items(self.list_uuid)
-        except BringAuthError as err:
-            raise ConfigEntryAuthFailed(str(err)) from err
-        except BringError as err:
-            raise UpdateFailed(f"Bring nicht erreichbar: {err}") from err
+        new = await self.backend.async_fetch()
 
-        # Übergang „kaufen“ → „zuletzt gekauft“ erkennen (egal ob in HA oder in der Bring-App abgehakt)
+        # Übergang „kaufen“ → „zuletzt gekauft“ erkennen (egal ob in HA, in der Bring-App oder per Alexa abgehakt)
         changed = False
         old = self.data
         purchase_now = {i.uuid for i in new.purchase}

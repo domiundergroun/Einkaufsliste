@@ -1,8 +1,7 @@
-"""To-do-Entität für die Bring-Liste."""
+"""To-do-Entität der Einkaufsliste (Quelle: Bring! oder eine Home-Assistant-Liste)."""
 
 from __future__ import annotations
 
-import uuid as uuidlib
 from typing import Any
 
 import voluptuous as vol
@@ -21,8 +20,8 @@ from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import OP_PURCHASE, OP_RECENTLY, OP_REMOVE, BringError, BringItem
-from .const import CONF_LIST_NAME, DOMAIN, VERSION
+from .api import BringItem
+from .const import CONF_LIST_NAME, CONF_SOURCE, CONF_TARGET_ENTITY, DOMAIN, SOURCE_BRING, VERSION
 from .coordinator import EinkaufslisteCoordinator
 
 
@@ -37,7 +36,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
 
 
 class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEntity):
-    """Bring-Liste als To-do-Liste (offen = kaufen, erledigt = zuletzt gekauft)."""
+    """Einkaufsliste als To-do-Liste (offen = kaufen, erledigt = zuletzt gekauft)."""
 
     _attr_has_entity_name = True
     _attr_name = None
@@ -53,10 +52,11 @@ class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEnt
         super().__init__(coordinator)
         entry = coordinator.entry
         self._attr_unique_id = f"{entry.entry_id}_list"
+        source = entry.data.get(CONF_SOURCE, SOURCE_BRING)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
             name=entry.data.get(CONF_LIST_NAME, entry.title),
-            manufacturer="Bring!",
+            manufacturer="Bring!" if source == SOURCE_BRING else "Home Assistant",
             model="Einkaufsliste",
             sw_version=VERSION,
             entry_type=DeviceEntryType.SERVICE,
@@ -91,9 +91,16 @@ class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEnt
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         entry = self.coordinator.entry
+        source = entry.data.get(CONF_SOURCE, SOURCE_BRING)
+        name = entry.data.get(CONF_LIST_NAME, entry.title)
+        if source != SOURCE_BRING:
+            target = self.hass.states.get(entry.data.get(CONF_TARGET_ENTITY, ""))
+            if target is not None:
+                name = target.attributes.get("friendly_name", name)
         return {
-            "list_name": entry.data.get(CONF_LIST_NAME, entry.title),
+            "list_name": name,
             "einkaufsliste": True,
+            "source": source,
             "stores": self.coordinator.stores,
             "assignments": dict(self.coordinator.assignments),
             "checked": {uid: round(ts) for uid, ts in self.coordinator.checked.items()},
@@ -116,63 +123,42 @@ class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEnt
                 return item, False
         return None, False
 
-    async def _send(self, changes: list[dict[str, str]]) -> None:
-        try:
-            await self.coordinator.client.batch_update(self.coordinator.list_uuid, changes)
-        except BringError as err:
-            raise HomeAssistantError(f"Bring-Liste konnte nicht geändert werden: {err}") from err
-        finally:
-            await self.coordinator.async_refresh()
+    async def _refresh(self) -> None:
+        await self.coordinator.async_refresh()
 
     # ---------------------------------------------------------------- actions
     async def async_create_todo_item(self, item: TodoItem) -> None:
         name = (item.summary or "").strip()
         if not name:
             raise HomeAssistantError("Artikelname fehlt")
-        op = OP_RECENTLY if item.status == TodoItemStatus.COMPLETED else OP_PURCHASE
-        # Gibt es den Artikel schon (z. B. unter „Zuletzt gekauft“)? Dann wiederverwenden.
-        existing = next(
-            (
-                i
-                for i in (self.coordinator.data.purchase + self.coordinator.data.recently)
-                if i.name.casefold() == name.casefold()
-            ),
-            None,
-        )
-        await self._send(
-            [
-                {
-                    "itemId": existing.name if existing else name,
-                    "spec": item.description or "",
-                    "uuid": existing.uuid if existing else str(uuidlib.uuid4()),
-                    "operation": op,
-                }
-            ]
-        )
+        try:
+            await self.coordinator.backend.async_add(
+                self.coordinator.data,
+                name,
+                item.description or "",
+                item.status == TodoItemStatus.COMPLETED,
+            )
+        finally:
+            await self._refresh()
 
     async def async_update_todo_item(self, item: TodoItem) -> None:
         current, _ = self._find(item.uid)
         if current is None:
             raise HomeAssistantError("Artikel nicht gefunden")
-        op = OP_RECENTLY if item.status == TodoItemStatus.COMPLETED else OP_PURCHASE
         new_name = (item.summary or current.name).strip()
         spec = item.description if item.description is not None else ""
-        changes: list[dict[str, str]] = []
         if new_name != current.name:
             await self.coordinator.async_rename_assignment(current.name, new_name)
-            changes.append(
-                {"itemId": current.name, "spec": "", "uuid": current.uuid, "operation": OP_REMOVE}
+        try:
+            await self.coordinator.backend.async_update(
+                current, new_name, spec, item.status == TodoItemStatus.COMPLETED
             )
-        changes.append({"itemId": new_name, "spec": spec, "uuid": current.uuid, "operation": op})
-        await self._send(changes)
+        finally:
+            await self._refresh()
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
-        changes = []
-        for uid in uids:
-            current, _ = self._find(uid)
-            if current is not None:
-                changes.append(
-                    {"itemId": current.name, "spec": "", "uuid": current.uuid, "operation": OP_REMOVE}
-                )
-        if changes:
-            await self._send(changes)
+        items = [found for uid in uids if (found := self._find(uid)[0]) is not None]
+        try:
+            await self.coordinator.backend.async_delete(items)
+        finally:
+            await self._refresh()

@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 DOMAIN = "einkaufsliste"
-VERSION = "1.3.2"
+VERSION = "1.4.0"
 
 CONF_LIST_UUID = "list_uuid"
 CONF_LIST_NAME = "list_name"
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_STORES = "stores"
 CONF_CUSTOM_STORES = "custom_stores"
+CONF_SOURCE = "source"
+CONF_TARGET_ENTITY = "target_entity"
+
+SOURCE_BRING = "bring"
+SOURCE_ENTITY = "entity"
 
 DEFAULT_SCAN_INTERVAL = 60  # Sekunden
 MIN_SCAN_INTERVAL = 15

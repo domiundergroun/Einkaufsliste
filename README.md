@@ -1,6 +1,6 @@
-# 🛒 Einkaufsliste (Bring!) für Home Assistant
+# 🛒 Einkaufsliste für Home Assistant
 
-Zeigt deine **Bring!-Einkaufsliste** als schöne Karte in Home Assistant – mit großen Kacheln, Bildern/Emojis, „Zuletzt gekauft“ und Bearbeiten per langem Drücken.
+Zeigt deine **Einkaufsliste aus Bring!, Alexa oder Home Assistant** als schöne Karte in Home Assistant – mit großen Kacheln, Bildern/Emojis, „Zuletzt gekauft“ und Bearbeiten per langem Drücken.
 
 - Anmeldung bei Bring! und Listenauswahl direkt in den Home-Assistant-Einstellungen
 - Eigene Lovelace-Karte `einkaufsliste-card` (wird automatisch geladen – keine Ressource nötig)
@@ -23,11 +23,19 @@ Zeigt deine **Bring!-Einkaufsliste** als schöne Karte in Home Assistant – mit
 Ordner `custom_components/einkaufsliste` nach `config/custom_components/` kopieren (oder die ZIP aus dem Release entpacken) und neu starten.
 
 ## Einrichtung
-1. **Einstellungen → Geräte & Dienste → Integration hinzufügen → „Einkaufsliste (Bring!)“**
-2. Bring!-E-Mail und Passwort eingeben (wer sich bei Bring mit Google/Apple anmeldet, legt zuerst in der Bring-App ein Passwort fest).
-3. Liste auswählen – fertig.
+1. **Einstellungen → Geräte & Dienste → Integration hinzufügen → „Einkaufsliste“**
+2. Quelle wählen:
+   - **Bring!** – E-Mail und Passwort eingeben (wer sich bei Bring mit Google/Apple anmeldet, legt zuerst in der Bring-App ein Passwort fest) und Liste auswählen.
+   - **Alexa- oder Home-Assistant-Liste** – eine vorhandene To-do-Liste wählen.
+3. Fertig. Die Quelle lässt sich jederzeit in der Karte über ⚙️ → Listen wechseln.
 
-Alle Einstellungen (Geschäfte, Bring-Zugang, Liste, Aktualisierung) findest du auch direkt in der Karte über das **Zahnrad ⚙️** oben rechts – oder unter **Konfigurieren** bei der Integration. Ändern dürfen das nur Administratoren.
+### Alexa
+Die Anmeldung bei Amazon läuft über die offizielle Home-Assistant-Integration **„Alexa Devices“** (ab Home Assistant 2026.7 mit Einkaufs- und To-do-Listen). In der Karte unter ⚙️ → Listen → Alexa → „Bei Alexa anmelden“ geht es direkt dorthin; danach erscheinen die Alexa-Listen zur Auswahl.
+
+### Home Assistant
+Unter ⚙️ → Listen → Home Assistant kannst du jede vorhandene Liste (z. B. „Einkaufsliste“ oder lokale To-do-Listen) wählen oder direkt eine neue lokale Liste anlegen.
+
+Alle Einstellungen (Geschäfte, Listen-Quelle, Bring-Zugang, Aktualisierung) findest du auch direkt in der Karte über das **Zahnrad ⚙️** oben rechts – oder unter **Konfigurieren** bei der Integration. Ändern dürfen das nur Administratoren.
 
 ## Geschäfte
 1. **Einstellungen → Geräte & Dienste → Einkaufsliste (Bring!) → Konfigurieren** → unter „Deine Geschäfte“ auswählen (eigene Geschäfte mit Komma getrennt ergänzen).

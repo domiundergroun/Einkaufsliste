@@ -1,14 +1,6 @@
 {
   "config": {
     "step": {
-      "user": {
-        "title": "Bei Bring! anmelden",
-        "description": "Melde dich mit deinem Bring!-Konto an. Wenn du dich bei Bring sonst mit Google/Apple anmeldest, lege in der Bring-App zuerst ein Passwort fest.",
-        "data": {
-          "email": "E-Mail",
-          "password": "Passwort"
-        }
-      },
       "list": {
         "title": "Liste auswählen",
         "description": "Welche Bring!-Liste soll angezeigt werden?",
@@ -21,6 +13,29 @@
         "description": "Die Anmeldung für {email} ist abgelaufen. Bitte gib dein Bring!-Passwort erneut ein.",
         "data": {
           "password": "Passwort"
+        }
+      },
+      "bring": {
+        "title": "Bei Bring! anmelden",
+        "description": "Melde dich mit deinem Bring!-Konto an. Wenn du dich bei Bring sonst mit Google/Apple anmeldest, lege in der Bring-App zuerst ein Passwort fest.",
+        "data": {
+          "email": "E-Mail",
+          "password": "Passwort"
+        }
+      },
+      "user": {
+        "title": "Welche Liste?",
+        "description": "Woher soll die Einkaufsliste kommen?",
+        "menu_options": {
+          "bring": "Bring!",
+          "ha_list": "Alexa- oder Home-Assistant-Liste"
+        }
+      },
+      "ha_list": {
+        "title": "Liste auswählen",
+        "description": "Wähle eine vorhandene Liste. Die Alexa-Einkaufsliste erscheint hier, sobald die Integration „Alexa Devices“ eingerichtet ist (ab Home Assistant 2026.7).",
+        "data": {
+          "target_entity": "Liste"
         }
       }
     },

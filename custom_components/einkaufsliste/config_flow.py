@@ -11,8 +11,11 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    EntitySelector,
+    EntitySelectorConfig,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -31,10 +34,14 @@ from .const import (
     CONF_LIST_NAME,
     CONF_LIST_UUID,
     CONF_SCAN_INTERVAL,
+    CONF_SOURCE,
     CONF_STORES,
+    CONF_TARGET_ENTITY,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MIN_SCAN_INTERVAL,
+    SOURCE_BRING,
+    SOURCE_ENTITY,
     STORE_CATALOG,
 )
 
@@ -89,7 +96,40 @@ class EinkaufslisteConfigFlow(ConfigFlow, domain=DOMAIN):
         self._lists: list[dict[str, str]] = []
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Schritt 1: Bei Bring anmelden."""
+        """Quelle wählen: Bring! oder eine vorhandene Liste (Alexa / Home Assistant)."""
+        return self.async_show_menu(step_id="user", menu_options=["bring", "ha_list"])
+
+    async def async_step_ha_list(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Vorhandene To-do-Liste aus Home Assistant verwenden (z. B. Alexa-Einkaufsliste)."""
+        if user_input is not None:
+            target = user_input[CONF_TARGET_ENTITY]
+            await self.async_set_unique_id(target)
+            self._abort_if_unique_id_configured()
+            state = self.hass.states.get(target)
+            name = state.attributes.get("friendly_name", target) if state else target
+            return self.async_create_entry(
+                title=name,
+                data={CONF_SOURCE: SOURCE_ENTITY, CONF_TARGET_ENTITY: target, CONF_LIST_NAME: name},
+                options={CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL},
+            )
+        own = [
+            e.entity_id
+            for e in er.async_get(self.hass).entities.values()
+            if e.platform == DOMAIN
+        ]
+        return self.async_show_form(
+            step_id="ha_list",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_TARGET_ENTITY): EntitySelector(
+                        EntitySelectorConfig(domain="todo", exclude_entities=own)
+                    )
+                }
+            ),
+        )
+
+    async def async_step_bring(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Bei Bring anmelden."""
         errors: dict[str, str] = {}
         if user_input is not None:
             try:
@@ -112,7 +152,7 @@ class EinkaufslisteConfigFlow(ConfigFlow, domain=DOMAIN):
                     return await self.async_step_list()
 
         return self.async_show_form(
-            step_id="user",
+            step_id="bring",
             data_schema=self.add_suggested_values_to_schema(LOGIN_SCHEMA, user_input),
             errors=errors,
         )
@@ -127,6 +167,7 @@ class EinkaufslisteConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title=name,
                 data={
+                    CONF_SOURCE: SOURCE_BRING,
                     CONF_EMAIL: self._email,
                     CONF_PASSWORD: self._password,
                     CONF_LIST_UUID: list_uuid,
@@ -195,8 +236,9 @@ class EinkaufslisteOptionsFlow(OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         entry = self.config_entry
         errors: dict[str, str] = {}
+        is_bring = entry.data.get(CONF_SOURCE, SOURCE_BRING) == SOURCE_BRING
 
-        if not self._lists:
+        if is_bring and not self._lists:
             try:
                 self._lists = await _login_and_fetch(
                     self.hass, entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD]
@@ -205,6 +247,15 @@ class EinkaufslisteOptionsFlow(OptionsFlow):
                 errors["base"] = "invalid_auth"
             except BringError:
                 errors["base"] = "cannot_connect"
+
+        if user_input is not None and not errors and not is_bring:
+            return self.async_create_entry(
+                data={
+                    CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
+                    CONF_STORES: list(user_input.get(CONF_STORES, [])),
+                    CONF_CUSTOM_STORES: (user_input.get(CONF_CUSTOM_STORES) or "").strip(),
+                }
+            )
 
         if user_input is not None and not errors:
             list_uuid = user_input[CONF_LIST_UUID]
@@ -233,15 +284,21 @@ class EinkaufslisteOptionsFlow(OptionsFlow):
                     }
                 )
 
-        if errors and not self._lists:
+        if is_bring and errors and not self._lists:
             return self.async_show_form(step_id="init", data_schema=vol.Schema({}), errors=errors)
 
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_LIST_UUID, default=entry.data[CONF_LIST_UUID]): _list_selector(
-                        self._lists
+                    **(
+                        {
+                            vol.Required(
+                                CONF_LIST_UUID, default=entry.data[CONF_LIST_UUID]
+                            ): _list_selector(self._lists)
+                        }
+                        if is_bring
+                        else {}
                     ),
                     vol.Optional(
                         CONF_STORES, default=entry.options.get(CONF_STORES, [])

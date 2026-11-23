@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.3.2";
+const CARD_VERSION = "1.4.0";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -552,7 +552,7 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
 /* Einklappbare Bereiche in den Einstellungen */
 .acc { border-bottom: 1px solid var(--divider-color); }
 .acc:last-child { border-bottom: 0; }
-.acc > summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 14px 2px; cursor: pointer; user-select: none; }
+.acc > summary { color: var(--primary-text-color); list-style: none; display: flex; align-items: center; gap: 10px; padding: 14px 2px; cursor: pointer; user-select: none; }
 .acc > summary::-webkit-details-marker { display: none; }
 .acc-ico { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 18px; flex: none;
   background: color-mix(in srgb, var(--acc) 12%, transparent); }
@@ -570,6 +570,15 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
 .acc.sub > summary { padding: 10px 0; }
 .acc-body h5 { margin: 16px 0 2px; font-size: .9rem; }
 .acc-body h5:first-child { margin-top: 2px; }
+.act-badge { font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--acc); color: #fff; margin-left: 4px; }
+.act-badge[hidden] { display: none; }
+.acc.sub + .acc.sub { margin-top: 8px; }
+.li { flex-wrap: wrap; }
+.li-id { width: 100%; padding-left: 28px; margin-top: -4px; font-size: .72rem; color: var(--secondary-text-color); font-weight: 400; }
+.sp-btn + .sp-btn { margin-left: 6px; }
+.sp-btn.ghost { background: transparent; color: var(--secondary-text-color); box-shadow: inset 0 0 0 1.5px var(--divider-color); }
+.sp-row { display: flex; gap: 8px; align-items: center; }
+.sp-row .sp-btn { margin-top: 0; flex: none; }
 `;
 
 class EinkaufslisteCard extends HTMLElement {
@@ -1090,18 +1099,23 @@ class EinkaufslisteCard extends HTMLElement {
         this._els.spBody.querySelector(".sel-count").textContent = this._set.stores.size;
         return;
       }
-      const li = ev.target.closest(".li[data-list]");
+      const li = ev.target.closest(".li");
       if (li) {
-        this._set.list_uuid = li.dataset.list;
-        for (const x of this._els.spBody.querySelectorAll(".li")) x.classList.toggle("on", x === li);
-        const sum = this._els.spBody.querySelector(".list-sum");
-        if (sum) sum.textContent = li.textContent.trim();
+        if (li.dataset.list) { this._set.source = "bring"; this._set.list_uuid = li.dataset.list; }
+        else { this._set.source = "entity"; this._set.target_entity = li.dataset.ent; }
+        this._markSelection();
         return;
       }
       if (ev.target.closest("#sp-login")) this._settingsLogin();
+      if (ev.target.closest("#alexa-login")) this._navigate("/config/integrations/dashboard/add?domain=alexa_devices");
+      if (ev.target.closest("#sp-reload")) this._reloadSettingsLists();
+      if (ev.target.closest("#ha-create")) this._createHaList();
     });
     this._els.spBody.addEventListener("input", (ev) => {
       if (ev.target.id === "sp-search") this._filterStores(ev.target.value);
+    });
+    this._els.spBody.addEventListener("keydown", (ev) => {
+      if (ev.target.id === "ha-new" && ev.key === "Enter") this._createHaList();
     });
     this._els.spBody.addEventListener("error", (ev) => {
       const img = ev.target;
@@ -1126,8 +1140,10 @@ class EinkaufslisteCard extends HTMLElement {
       const r = await this._hass.callWS({ type: "einkaufsliste/settings/get", entity_id: this._config.entity });
       this._set = {
         catalog: r.catalog, stores: new Set(r.stores), custom_stores: r.custom_stores || "",
-        email: r.email, list_uuid: r.list_uuid, lists: r.lists || [], lists_error: r.lists_error,
-        scan_interval: r.scan_interval, origEmail: r.email,
+        email: r.email || "", has_password: !!r.has_password, lists: r.lists || [], lists_error: r.lists_error,
+        scan_interval: r.scan_interval,
+        source: r.source || "bring", list_uuid: r.list_uuid || "", target_entity: r.target_entity || "",
+        alexa_configured: !!r.alexa_configured, alexa_lists: r.alexa_lists || [], ha_lists: r.ha_lists || [],
       };
       this._renderSettings();
       this._els.spSave.disabled = false;
@@ -1135,7 +1151,7 @@ class EinkaufslisteCard extends HTMLElement {
       const admin = e && (e.code === "unauthorized" || /unauthor/i.test(e.message || ""));
       this._els.spBody.innerHTML = `<div class="error">${admin
         ? "Nur Administratoren können die Einstellungen ändern."
-        : esc(e?.message || "Einstellungen konnten nicht geladen werden. Ist die Integration auf Version 1.3.0 aktualisiert und Home Assistant neu gestartet?")}</div>`;
+        : esc(e?.message || "Einstellungen konnten nicht geladen werden. Ist die Integration auf Version 1.4.0 aktualisiert und Home Assistant neu gestartet?")}</div>`;
     }
   }
 
@@ -1161,34 +1177,150 @@ class EinkaufslisteCard extends HTMLElement {
       </details>
       <details class="acc">
         <summary><span class="acc-ico">📝</span><span class="acc-t">Listen</span>
-          <span class="acc-sub list-sum">${esc(listName)}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
+          <span class="acc-sub list-sum">${esc(this._activeListLabel())}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
         <div class="acc-body">
-          <details class="acc sub">
+          <p class="sp-hint">Wähle, welche Liste die Karte anzeigt – aus Bring!, Alexa oder Home Assistant.</p>
+          <details class="acc sub" data-src="bring">
             <summary><span class="acc-ico">${storeLogo(bring)}</span><span class="acc-t">Bring!</span>
-              <span class="acc-sub">${esc(st.email)}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
+              ${this._activeBadge("bring")}<span class="acc-sub">${esc(st.email)}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
             <div class="acc-body">
               <h5>🔑 Anmeldung</h5>
               <label class="sp-label">E-Mail</label>
               <input id="sp-email" class="sp-input" type="email" autocomplete="username" value="${esc(st.email)}">
               <label class="sp-label">Passwort</label>
-              <input id="sp-pass" class="sp-input" type="password" autocomplete="new-password" placeholder="•••••••• (unverändert lassen)">
+              <input id="sp-pass" class="sp-input" type="password" autocomplete="new-password"
+                placeholder="${st.has_password ? "•••••••• (unverändert lassen)" : "Bring!-Passwort"}">
               <button type="button" class="sp-btn" id="sp-login">Anmelden &amp; Listen laden</button>
               <h5>📋 Bring-Liste</h5>
-              <div class="lists">${this._listsHtml()}</div>
+              <div class="lists" id="bring-lists">${this._listsHtml()}</div>
               <h5>🔄 Aktualisierung</h5>
               <label class="sp-label">Bring alle … Sekunden abfragen</label>
               <input id="sp-interval" class="sp-input sp-num" type="number" min="15" max="3600" step="5" value="${esc(st.scan_interval)}">
             </div>
           </details>
+          <details class="acc sub" data-src="alexa">
+            <summary><span class="acc-ico">${storeLogo({ name: "Alexa", domain: "alexa.amazon.com", emoji: "🔵" })}</span>
+              <span class="acc-t">Alexa</span>${this._activeBadge("alexa")}<span class="acc-chev">${ICONS.chevron}</span></summary>
+            <div class="acc-body" id="alexa-body">${this._alexaHtml()}</div>
+          </details>
+          <details class="acc sub" data-src="ha">
+            <summary><span class="acc-ico">${storeLogo({ name: "Home Assistant", domain: "home-assistant.io", emoji: "🏠" })}</span>
+              <span class="acc-t">Home Assistant</span>${this._activeBadge("ha")}<span class="acc-chev">${ICONS.chevron}</span></summary>
+            <div class="acc-body" id="ha-body">${this._haHtml()}</div>
+          </details>
         </div>
       </details>`;
+  }
+
+  /** Welche Gruppe ist gerade gewählt? bring | alexa | ha */
+  _activeGroup() {
+    const st = this._set;
+    if (st.source === "bring") return "bring";
+    return st.alexa_lists.some((l) => l.entity_id === st.target_entity) ? "alexa" : "ha";
+  }
+
+  _activeListLabel() {
+    const st = this._set;
+    if (st.source === "bring") {
+      const n = st.lists.find((l) => l.uuid === st.list_uuid)?.name;
+      return n ? `Bring! · ${n}` : "Bring!";
+    }
+    const all = [...st.alexa_lists, ...st.ha_lists];
+    const n = all.find((l) => l.entity_id === st.target_entity)?.name || st.target_entity;
+    return `${this._activeGroup() === "alexa" ? "Alexa" : "Home Assistant"} · ${n}`;
+  }
+
+  _activeBadge(group) {
+    return `<span class="act-badge" data-group="${group}" ${this._activeGroup() === group ? "" : "hidden"}>aktiv</span>`;
+  }
+
+  _entityListHtml(lists) {
+    const st = this._set;
+    return lists.map((l) => `<button type="button" class="li ${st.source === "entity" && l.entity_id === st.target_entity ? "on" : ""}"
+      data-ent="${esc(l.entity_id)}"><span class="li-dot"></span><span>${esc(l.name)}</span>
+      <small class="li-id">${esc(l.entity_id)}</small></button>`).join("");
+  }
+
+  _alexaHtml() {
+    const st = this._set;
+    const login = `<button type="button" class="sp-btn" id="alexa-login">${st.alexa_configured ? "Weiteres Amazon-Konto anmelden" : "Bei Alexa anmelden"}</button>
+      <button type="button" class="sp-btn ghost" id="sp-reload">Listen neu laden</button>`;
+    if (st.alexa_lists.length) {
+      return `<h5>📋 Alexa-Liste</h5><div class="lists">${this._entityListHtml(st.alexa_lists)}</div>
+        <p class="sp-hint" style="margin-top:12px">Anmeldung &amp; Konten verwaltest du in der Integration „Alexa Devices“.</p>${login}`;
+    }
+    return `<p class="sp-hint">${st.alexa_configured
+      ? "Alexa ist angemeldet, aber es wurden keine Alexa-Listen gefunden. Die Einkaufs- und To-do-Listen gibt es ab Home Assistant 2026.7 – bitte Home Assistant aktualisieren."
+      : "Die Anmeldung bei Amazon läuft sicher über die offizielle Home-Assistant-Integration „Alexa Devices“. Danach erscheinen hier deine Alexa-Einkaufs- und To-do-Listen (ab Home Assistant 2026.7)."}</p>${login}`;
+  }
+
+  _haHtml() {
+    const st = this._set;
+    const lists = st.ha_lists.length
+      ? `<div class="lists">${this._entityListHtml(st.ha_lists)}</div>`
+      : `<p class="sp-hint">Noch keine Listen in Home Assistant.</p>`;
+    return `<h5>📋 Liste auswählen</h5>${lists}
+      <h5>➕ Neue Liste anlegen</h5>
+      <div class="sp-row"><input id="ha-new" class="sp-input" placeholder="z. B. Einkauf Familie">
+        <button type="button" class="sp-btn" id="ha-create">Anlegen</button></div>`;
+  }
+
+  _markSelection() {
+    const body = this._els.spBody;
+    const st = this._set;
+    for (const x of body.querySelectorAll(".li")) {
+      const on = x.dataset.list
+        ? st.source === "bring" && x.dataset.list === st.list_uuid
+        : st.source === "entity" && x.dataset.ent === st.target_entity;
+      x.classList.toggle("on", on);
+    }
+    const g = this._activeGroup();
+    for (const b of body.querySelectorAll(".act-badge")) b.hidden = b.dataset.group !== g;
+    const sum = body.querySelector(".list-sum");
+    if (sum) sum.textContent = this._activeListLabel();
+  }
+
+  _navigate(path) {
+    this._closeSettings();
+    history.pushState(null, "", path);
+    window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+  }
+
+  async _reloadSettingsLists() {
+    try {
+      const r = await this._hass.callWS({ type: "einkaufsliste/settings/get", entity_id: this._config.entity });
+      Object.assign(this._set, { alexa_configured: !!r.alexa_configured, alexa_lists: r.alexa_lists || [], ha_lists: r.ha_lists || [] });
+      this._els.spBody.querySelector("#alexa-body").innerHTML = this._alexaHtml();
+      this._els.spBody.querySelector("#ha-body").innerHTML = this._haHtml();
+      this._markSelection();
+    } catch (_) {}
+  }
+
+  async _createHaList() {
+    const input = this._els.spBody.querySelector("#ha-new");
+    const btn = this._els.spBody.querySelector("#ha-create");
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    btn.disabled = true; btn.textContent = "Wird angelegt …";
+    try {
+      const r = await this._hass.callWS({ type: "einkaufsliste/settings/create_list", entity_id: this._config.entity, name });
+      this._set.ha_lists = r.ha_lists || this._set.ha_lists;
+      this._set.source = "entity";
+      this._set.target_entity = r.entity_id;
+      this._els.spBody.querySelector("#ha-body").innerHTML = this._haHtml();
+      this._markSelection();
+    } catch (e) {
+      this._els.spMsg.textContent = e?.message || "Liste konnte nicht angelegt werden.";
+      btn.disabled = false; btn.textContent = "Anlegen";
+    }
   }
 
   _listsHtml() {
     const st = this._set;
     if (st.lists_error) return `<div class="error">${esc(st.lists_error)}</div>`;
     if (!st.lists.length) return `<div class="sp-hint">Keine Listen gefunden.</div>`;
-    return st.lists.map((l) => `<button type="button" class="li ${l.uuid === st.list_uuid ? "on" : ""}" data-list="${esc(l.uuid)}">
+    if (!st.lists.length && !st.email) return `<div class="sp-hint">Melde dich an, um deine Bring!-Listen zu sehen.</div>`;
+    return st.lists.map((l) => `<button type="button" class="li ${st.source === "bring" && l.uuid === st.list_uuid ? "on" : ""}" data-list="${esc(l.uuid)}">
       <span class="li-dot"></span><span>${esc(l.name)}</span></button>`).join("");
   }
 
@@ -1210,11 +1342,13 @@ class EinkaufslisteCard extends HTMLElement {
       this._set.lists = r.lists || [];
       this._set.lists_error = null;
       if (!this._set.lists.some((l) => l.uuid === this._set.list_uuid)) this._set.list_uuid = this._set.lists[0]?.uuid || "";
+      this._set.has_password = this._set.has_password || !!password;
     } catch (e) {
       this._set.lists = [];
       this._set.lists_error = e?.message || "Anmeldung fehlgeschlagen.";
     }
     box.innerHTML = this._listsHtml();
+    this._markSelection();
     btn.disabled = false; btn.textContent = "Anmelden & Listen laden";
   }
 
@@ -1230,7 +1364,10 @@ class EinkaufslisteCard extends HTMLElement {
     };
     const pw = body.querySelector("#sp-pass").value;
     if (pw) msg.password = pw;
-    if (this._set.list_uuid) msg.list_uuid = this._set.list_uuid;
+    msg.source = this._set.source;
+    if (this._set.source === "bring") { if (this._set.list_uuid) msg.list_uuid = this._set.list_uuid; }
+    else msg.target_entity = this._set.target_entity;
+    if (!msg.email) delete msg.email;
     this._els.spSave.disabled = true;
     this._els.spMsg.textContent = "Wird gespeichert …";
     try {
@@ -1467,8 +1604,8 @@ if (!customElements.get("einkaufsliste-card")) {
   window.customCards = window.customCards || [];
   window.customCards.push({
     type: "einkaufsliste-card",
-    name: "Einkaufsliste (Bring!)",
-    description: "Deine Bring!-Einkaufsliste als hübsche Kacheln – mit Reitern für deine Geschäfte.",
+    name: "Einkaufsliste",
+    description: "Deine Einkaufsliste (Bring!, Alexa oder Home Assistant) als hübsche Kacheln – mit Reitern für deine Geschäfte.",
     preview: true,
     documentationURL: "https://github.com/domiundergroun/Einkaufsliste",
   });
