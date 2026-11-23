@@ -27,12 +27,26 @@ from homeassistant.helpers.selector import (
 
 from .api import BringAuthError, BringClient, BringConnectionError, BringError
 from .const import (
+    CONF_CUSTOM_STORES,
     CONF_LIST_NAME,
     CONF_LIST_UUID,
     CONF_SCAN_INTERVAL,
+    CONF_STORES,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MIN_SCAN_INTERVAL,
+    STORE_CATALOG,
+)
+
+STORE_SELECTOR = SelectSelector(
+    SelectSelectorConfig(
+        options=[
+            SelectOptionDict(value=sid, label=f"{emoji} {name}" if not domain else name)
+            for sid, (name, domain, emoji) in STORE_CATALOG.items()
+        ],
+        multiple=True,
+        mode=SelectSelectorMode.DROPDOWN,
+    )
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -212,7 +226,11 @@ class EinkaufslisteOptionsFlow(OptionsFlow):
                         data={**entry.data, CONF_LIST_UUID: list_uuid, CONF_LIST_NAME: name},
                     )
                 return self.async_create_entry(
-                    data={CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL])}
+                    data={
+                        CONF_SCAN_INTERVAL: int(user_input[CONF_SCAN_INTERVAL]),
+                        CONF_STORES: list(user_input.get(CONF_STORES, [])),
+                        CONF_CUSTOM_STORES: (user_input.get(CONF_CUSTOM_STORES) or "").strip(),
+                    }
                 )
 
         if errors and not self._lists:
@@ -225,6 +243,13 @@ class EinkaufslisteOptionsFlow(OptionsFlow):
                     vol.Required(CONF_LIST_UUID, default=entry.data[CONF_LIST_UUID]): _list_selector(
                         self._lists
                     ),
+                    vol.Optional(
+                        CONF_STORES, default=entry.options.get(CONF_STORES, [])
+                    ): STORE_SELECTOR,
+                    vol.Optional(
+                        CONF_CUSTOM_STORES,
+                        description={"suggested_value": entry.options.get(CONF_CUSTOM_STORES, "")},
+                    ): TextSelector(TextSelectorConfig()),
                     vol.Required(
                         CONF_SCAN_INTERVAL,
                         default=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),

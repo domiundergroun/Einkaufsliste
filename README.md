@@ -8,6 +8,8 @@ Zeigt deine **Bring!-Einkaufsliste** als schöne Karte in Home Assistant – mit
 - Hinzufügen mit Beschreibung: `Milch, 2 Liter`
 - Langes Drücken / Rechtsklick = Name & Beschreibung bearbeiten oder löschen
 - Kachel- oder Listenansicht, mehrere Farben, Hell- & Dunkelmodus
+- Über 1.300 Stichwörter für Lebensmittel & Haushalt mit passendem Bild (auch zusammengesetzte Wörter wie „Vollkornbrot“ oder „Bergkäse“)
+- **Reiter für Geschäfte**: Artikel lassen sich ALDI, Lidl, REWE, dm & Co. zuordnen – mit Logo
 - Die Liste ist zusätzlich als normale To-do-Entität nutzbar (Automationen, Sprachassistent, To-do-Ansicht)
 
 ## Installation
@@ -26,6 +28,16 @@ Ordner `custom_components/einkaufsliste` nach `config/custom_components/` kopier
 
 Über **Konfigurieren** kannst du später eine andere Liste wählen und das Aktualisierungsintervall ändern.
 
+## Geschäfte
+1. **Einstellungen → Geräte & Dienste → Einkaufsliste (Bring!) → Konfigurieren** → unter „Deine Geschäfte“ auswählen (eigene Geschäfte mit Komma getrennt ergänzen).
+2. In der Karte lange auf einen Artikel drücken → Geschäft wählen.
+3. Sobald einem Geschäft Artikel zugeordnet sind, erscheint oben ein Reiter dafür:
+   - **Allgemein** zeigt alle Artikel ohne Geschäft.
+   - **Geschäfts-Reiter** zeigen „Nur bei …“ plus alle allgemeinen Artikel.
+4. Die Zuordnung wird pro Artikelname gemerkt – kommt „Gouda“ wieder auf die Liste, landet er automatisch bei seinem Geschäft. Wer in einem Geschäfts-Reiter etwas hinzufügt, ordnet es direkt diesem Geschäft zu.
+
+Die Logos werden in der Karte direkt über die Webseite des Geschäfts geladen. Ohne Internet erscheint ein farbiger Anfangsbuchstabe.
+
 ## Karte
 Dashboard bearbeiten → Karte hinzufügen → **Einkaufsliste (Bring!)**. Alles ist im visuellen Editor einstellbar, oder per YAML:
 
@@ -38,7 +50,10 @@ accent: bring           # bring | smaragd | ozean | violett | orange | graphit |
 sort: bring             # bring | alpha
 show_recent: true
 recent_limit: 24
-show_icons: true        # Bring-Bilder laden, sonst Emojis
+show_tabs: true         # Reiter für Geschäfte
+show_icons: false       # true = Bring-Bilder statt Emojis
 ```
+
+Das Integrations-Logo wird ab Home Assistant 2026.3 angezeigt.
 
 > Hinweis: Bring! bietet keine offizielle API. Die Integration nutzt dieselbe Schnittstelle wie die Bring-Apps.

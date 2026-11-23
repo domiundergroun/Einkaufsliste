@@ -39,10 +39,16 @@
     "step": {
       "init": {
         "title": "Shopping list – settings",
-        "description": "Choose the Bring! list and how often it refreshes.",
+        "description": "Choose the Bring! list, your stores and how often it refreshes.",
         "data": {
           "list_uuid": "List",
-          "scan_interval": "Update interval"
+          "scan_interval": "Update interval",
+          "stores": "Your stores",
+          "custom_stores": "Additional stores (comma separated)"
+        },
+        "data_description": {
+          "stores": "Stores you can assign items to in the card (long-press an item). Each store with assigned items gets its own tab.",
+          "custom_stores": "e.g. Farm shop, Organic store"
         }
       }
     },
@@ -50,6 +56,22 @@
       "invalid_auth": "Sign-in to Bring! failed – please re-authenticate.",
       "cannot_connect": "Bring! is not reachable.",
       "already_configured": "This list is already configured as a separate entry."
+    }
+  },
+  "services": {
+    "set_store": {
+      "name": "Assign store",
+      "description": "Assigns an item to a store (empty = general).",
+      "fields": {
+        "item": {
+          "name": "Item",
+          "description": "Item name or UID"
+        },
+        "store": {
+          "name": "Store",
+          "description": "Store ID, e.g. aldi_sued"
+        }
+      }
     }
   }
 }

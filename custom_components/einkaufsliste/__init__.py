@@ -50,6 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: EinkaufslisteConfigEntry
         raise ConfigEntryNotReady(str(err)) from err
 
     coordinator = EinkaufslisteCoordinator(hass, entry, client)
+    await coordinator.async_load_assignments()
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
 
@@ -60,6 +61,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: EinkaufslisteConfigEntry
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Gespeicherte Geschäft-Zuordnungen löschen, wenn der Eintrag entfernt wird."""
+    from homeassistant.helpers.storage import Store
+
+    from .const import STORAGE_VERSION
+
+    await Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}").async_remove()
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: EinkaufslisteConfigEntry) -> bool:

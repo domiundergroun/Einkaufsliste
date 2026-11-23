@@ -1,9 +1,10 @@
 /*
  * Einkaufsliste-Karte für Home Assistant
- * Zeigt eine Bring!-Liste (Integration „einkaufsliste“) als hübsche Kacheln an.
+ * Zeigt eine Bring!-Liste (Integration „einkaufsliste“) als hübsche Kacheln an –
+ * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.0.0";
+const CARD_VERSION = "1.1.0";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -15,58 +16,223 @@ const ACCENTS = {
   theme: ["var(--primary-color)", "var(--primary-color)"],
 };
 
-const EMOJI = [
-  [["milch", "hafermilch", "sojamilch"], "🥛"], [["käse", "kaese", "parmesan", "mozzarella", "gouda", "feta"], "🧀"],
-  [["brötchen", "baguette", "semmel"], "🥖"], [["brot", "toast"], "🍞"], [["butter"], "🧈"], [["eier", "ei"], "🥚"],
-  [["äpfel", "apfel"], "🍎"], [["banane"], "🍌"], [["birne"], "🍐"], [["orange", "mandarine"], "🍊"], [["zitrone", "limette"], "🍋"],
-  [["trauben", "weintrauben"], "🍇"], [["erdbeer"], "🍓"], [["kirsche"], "🍒"], [["pfirsich", "nektarine"], "🍑"], [["ananas"], "🍍"],
-  [["melone"], "🍉"], [["kiwi"], "🥝"], [["heidelbeer", "blaubeer", "beeren"], "🫐"], [["tomate"], "🍅"], [["gurke"], "🥒"],
-  [["karotte", "möhre", "moehre"], "🥕"], [["kartoffel"], "🥔"], [["zwiebel"], "🧅"], [["knoblauch"], "🧄"], [["paprika"], "🫑"],
-  [["salat", "spinat", "rucola", "kohl"], "🥬"], [["brokkoli"], "🥦"], [["pilze", "champignon"], "🍄"], [["mais"], "🌽"],
-  [["avocado"], "🥑"], [["aubergine"], "🍆"], [["chili"], "🌶️"], [["hähnchen", "haehnchen", "huhn", "chicken", "pute"], "🍗"],
-  [["hack", "fleisch", "steak", "rind", "schnitzel"], "🥩"], [["wurst", "würstchen", "salami"], "🌭"], [["schinken", "speck", "bacon"], "🥓"],
-  [["lachs", "fisch", "thunfisch", "forelle"], "🐟"], [["garnele", "shrimp", "krabbe"], "🦐"], [["nudeln", "pasta", "spaghetti", "penne", "lasagne"], "🍝"],
-  [["reis"], "🍚"], [["mehl"], "🌾"], [["zucker"], "🍬"], [["salz"], "🧂"], [["öl", "olivenöl", "oliven"], "🫒"], [["honig"], "🍯"],
-  [["kaffee", "espresso", "kaffeebohnen"], "☕"], [["tee"], "🍵"], [["wasser", "sprudel", "mineralwasser"], "💧"], [["saft"], "🧃"],
-  [["bier"], "🍺"], [["wein", "rotwein", "weißwein"], "🍷"], [["sekt", "prosecco", "champagner"], "🍾"], [["cola", "limo", "limonade", "fanta"], "🥤"],
-  [["joghurt", "quark", "müsli", "muesli", "cornflakes", "haferflocken"], "🥣"], [["sahne", "schmand"], "🥛"], [["eis", "eiscreme"], "🍨"],
-  [["schokolade", "schoko"], "🍫"], [["kekse", "cookies", "plätzchen"], "🍪"], [["chips", "popcorn", "snacks"], "🍿"], [["pizza"], "🍕"],
-  [["kuchen", "torte"], "🍰"], [["nüsse", "nuesse", "erdnüsse", "mandeln"], "🥜"], [["marmelade", "konfitüre", "nutella"], "🍯"],
-  [["klopapier", "toilettenpapier", "küchenrolle", "kuechenrolle", "taschentücher"], "🧻"], [["seife", "handseife"], "🧼"],
-  [["shampoo", "duschgel", "spülung", "creme", "deo"], "🧴"], [["zahnpasta", "zahnbürste", "zahncreme"], "🪥"],
-  [["waschmittel", "weichspüler"], "🧺"], [["spülmittel", "schwamm", "spülmaschinentabs", "tabs"], "🧽"], [["müllbeutel", "muellbeutel"], "🗑️"],
-  [["batterien", "batterie"], "🔋"], [["windeln"], "👶"], [["katzenfutter", "katzenstreu"], "🐱"], [["hundefutter"], "🐶"],
-  [["blumen"], "💐"], [["kerzen", "teelichter"], "🕯️"], [["medikamente", "tabletten", "pflaster"], "💊"], [["gewürz", "pfeffer", "paprikapulver"], "🧂"],
+function foldKey(s) {
+  return String(s ?? "")
+    .toLowerCase()
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .replace(/[éèê]/g, "e").replace(/[áàâ]/g, "a").replace(/[ç]/g, "c")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+// Emoji → Stichwörter (deutsch). Zusammengesetzte Wörter werden über die Endung erkannt
+// (z. B. „Vollkornbrot“ → brot, „Bergkäse“ → käse).
+const EMOJI_CATALOG = [
+  ["🥛", "milch,haferdrink,sojadrink,mandeldrink,reisdrink,pflanzendrink,barista,vollmilch,frischmilch,h-milch,hafermilch,sojamilch,mandelmilch,reismilch,buttermilch,sahne,schlagsahne,kaffeesahne,kondensmilch,kaffeeweißer,milchdrink"],
+  ["🧀", "käse,gouda,emmentaler,edamer,parmesan,mozzarella,feta,camembert,brie,frischkäse,hüttenkäse,bergkäse,cheddar,raclette,halloumi,mascarpone,ricotta,schafskäse,reibekäse,tilsiter,butterkäse,scheibenkäse,grana padano,gorgonzola,leerdammer,appenzeller,hirtenkäse,streichkäse,ziegenkäse,pecorino"],
+  ["🧈", "butter,margarine,kräuterbutter,süßrahmbutter,ghee,butterschmalz,schmalz"],
+  ["🥚", "ei,eier,wachteleier,bio-eier"],
+  ["🥣", "joghurt,naturjoghurt,quark,magerquark,skyr,müsli,cornflakes,haferflocken,porridge,granola,kefir,ayran,frühstücksflocken,cerealien,schmand,saure sahne,crème fraîche,creme fraiche,dickmilch"],
+  ["🍮", "pudding,grießpudding,dessert,götterspeise,mousse,tiramisu,panna cotta,milchschnitte"],
+  ["🍞", "brot,toast,toastbrot,vollkornbrot,mischbrot,sauerteigbrot,knäckebrot,sandwich,sandwichtoast,weißbrot,roggenbrot,graubrot,dinkelbrot,pumpernickel,zwieback"],
+  ["🥖", "baguette,brötchen,semmel,semmeln,ciabatta,laugenstange,aufbackbrötchen,schrippe,weckle,baguettebrötchen,kaiserbrötchen"],
+  ["🥐", "croissant,croissants,hörnchen,gebäck,plunder,teilchen,franzbrötchen,schnecke,brioche"],
+  ["🥨", "brezel,brezeln,breze,laugenbrezel,salzstangen,salzbrezeln"],
+  ["🥯", "bagel,bagels"],
+  ["🫓", "fladenbrot,pita,naan,wraps,tortilla,tortillas,lavash,yufka"],
+  ["🧇", "waffel,waffeln"],
+  ["🥞", "pfannkuchen,pancakes,crêpes,crepes,eierkuchen"],
+  ["🍰", "kuchen,torte,käsekuchen,obstkuchen,marmorkuchen,tortenboden"],
+  ["🧁", "muffin,muffins,cupcakes,muffinförmchen"],
+  ["🍪", "keks,kekse,cookies,plätzchen,butterkekse,löffelbiskuit,löffelbiskuits,leibniz,oreo,lebkuchen,spekulatius,printen"],
+  ["🍫", "schokolade,schoko,kakao,kakaopulver,schokoriegel,kuvertüre,schokotropfen,pralinen,überraschungsei,nougat,milka,ritter sport"],
+  ["🍬", "bonbons,gummibärchen,süßigkeiten,fruchtgummi,lakritz,kaugummi,marshmallows,weingummi,haribo"],
+  ["🍭", "lutscher,lolli"],
+  ["🧂", "salz,meersalz,jodsalz,pfeffer,gewürze,gewürz,paprikapulver,curry,currypulver,zimt,muskat,oregano,brühwürfel,kümmel,chiliflocken,gewürzmischung,kurkuma,cayennepfeffer,vanille,nelken,lorbeer"],
+  ["🍚", "reis,basmati,basmatireis,jasminreis,risottoreis,milchreis,langkornreis,wildreis,sushireis,parboiled"],
+  ["🍝", "nudeln,pasta,spaghetti,penne,fusilli,farfalle,tagliatelle,lasagne,lasagneplatten,makkaroni,tortellini,ravioli,gnocchi,spätzle,bandnudeln,eiernudeln,suppennudeln,rigatoni,linguine,maccheroni"],
+  ["🍜", "ramen,instantnudeln,mie-nudeln,glasnudeln,reisnudeln,suppe,brühe,gemüsebrühe,hühnerbrühe,rinderbrühe,fond,eintopf,tütensuppe"],
+  ["🌾", "mehl,weizenmehl,dinkelmehl,roggenmehl,vollkornmehl,grieß,couscous,bulgur,quinoa,hirse,polenta,hefe,trockenhefe,backpulver,natron,paniermehl,semmelbrösel,speisestärke,stärke,gelatine,haferkleie,leinsamen,chiasamen"],
+  ["🍬", "zucker,puderzucker,vanillezucker,rohrzucker,brauner zucker,gelierzucker,süßstoff,xylit,würfelzucker"],
+  ["🍯", "honig,marmelade,konfitüre,nutella,aufstrich,nussnougatcreme,sirup,ahornsirup,agavendicksaft,gelee,apfelmus,zuckerrübensirup"],
+  ["🥜", "erdnüsse,erdnuss,nüsse,walnüsse,haselnüsse,cashews,cashewkerne,erdnussbutter,pistazien,studentenfutter,macadamia,pekannüsse,paranüsse,nussmischung"],
+  ["🌰", "maronen,kastanien,mandeln,gemahlene mandeln,mandelblättchen"],
+  ["🍎", "apfel,äpfel,boskop,elstar,pink lady,braeburn,gala"],
+  ["🍏", "grüner apfel,granny smith"],
+  ["🍐", "birne,birnen"],
+  ["🍊", "orange,orangen,mandarine,mandarinen,clementine,clementinen,grapefruit,blutorangen"],
+  ["🍋", "zitrone,zitronen,limette,limetten,zitronensaft,limettensaft"],
+  ["🍌", "banane,bananen"],
+  ["🍉", "wassermelone,melone"],
+  ["🍈", "honigmelone,cantaloupe,galiamelone"],
+  ["🍇", "trauben,weintrauben,rosinen"],
+  ["🍓", "erdbeere,erdbeeren"],
+  ["🫐", "heidelbeeren,blaubeeren,beeren,himbeeren,brombeeren,johannisbeeren,cranberrys,cranberries,stachelbeeren,beerenmischung"],
+  ["🍒", "kirsche,kirschen,sauerkirschen"],
+  ["🍑", "pfirsich,pfirsiche,nektarine,nektarinen,aprikose,aprikosen,pflaumen,zwetschgen,mirabellen"],
+  ["🥭", "mango,mangos,papaya,maracuja,passionsfrucht"],
+  ["🍍", "ananas"],
+  ["🥥", "kokosnuss,kokos,kokosmilch,kokosraspeln,kokosöl"],
+  ["🥝", "kiwi,kiwis"],
+  ["🍅", "tomate,tomaten,cherrytomaten,cocktailtomaten,rispentomaten,passierte tomaten,tomatenmark,dosentomaten,stückige tomaten,getrocknete tomaten,tomatensoße,tomatensauce"],
+  ["🍆", "aubergine,auberginen"],
+  ["🥑", "avocado,avocados,guacamole"],
+  ["🫛", "erbsen,zuckerschoten,edamame,erbsen und möhren"],
+  ["🥦", "brokkoli,broccoli,blumenkohl,romanesco,rosenkohl,kohlrabi"],
+  ["🥬", "salat,eisbergsalat,kopfsalat,rucola,spinat,blattspinat,mangold,chinakohl,kohl,weißkohl,rotkohl,wirsing,grünkohl,feldsalat,lauch,porree,römersalat,pak choi,sauerkraut,lollo rosso,radicchio,endivie"],
+  ["🥒", "gurke,gurken,salatgurke,zucchini,essiggurken,gewürzgurken,cornichons,minigurken"],
+  ["🌶️", "chili,chilis,peperoni,jalapeños,jalapenos,peperoncini,sambal,sriracha,tabasco"],
+  ["🫑", "paprika,paprikaschoten,spitzpaprika"],
+  ["🌽", "mais,maiskolben,zuckermais"],
+  ["🥕", "karotte,karotten,möhre,möhren,rüebli,pastinaken,petersilienwurzel,rote bete,rote beete,radieschen,rettich,sellerie,knollensellerie,staudensellerie,fenchel,spargel"],
+  ["🫒", "oliven,olivenöl,öl,rapsöl,sonnenblumenöl,speiseöl,bratöl,sesamöl,leinöl,kapern"],
+  ["🧄", "knoblauch,knoblauchzehen,knofi"],
+  ["🧅", "zwiebel,zwiebeln,rote zwiebeln,schalotten,frühlingszwiebeln,lauchzwiebeln,röstzwiebeln,gemüsezwiebel"],
+  ["🥔", "kartoffel,kartoffeln,festkochende kartoffeln,mehligkochende kartoffeln,pommes,pommes frites,kroketten,kartoffelpüree,rösti,kartoffelpuffer,bratkartoffeln,kartoffelsalat,gnocchi"],
+  ["🍠", "süßkartoffel,süßkartoffeln"],
+  ["🫚", "ingwer,kurkumawurzel"],
+  ["🍄", "pilze,champignons,pfifferlinge,steinpilze,austernpilze,shiitake,kräuterseitlinge"],
+  ["🫘", "bohnen,grüne bohnen,kidneybohnen,weiße bohnen,linsen,rote linsen,kichererbsen,baked beans,sojabohnen,tofu,tempeh"],
+  ["🌿", "kräuter,petersilie,basilikum,schnittlauch,dill,koriander,minze,rosmarin,thymian,salbei,kresse,pesto,kräuter der provence,bärlauch"],
+  ["🥗", "salatmischung,salatbox,krautsalat,nudelsalat,salatdressing,dressing"],
+  ["🍕", "pizza,tiefkühlpizza,pizzateig,flammkuchen,flammkuchenteig,baguette pizza"],
+  ["🌮", "tacos,taco,taco shells,nachos,burritos,enchiladas"],
+  ["🍔", "burger,burgerbrötchen,burger patties,patties,hamburger,cheeseburger"],
+  ["🌭", "wurst,würstchen,wiener,wienerle,frankfurter,bratwurst,bockwurst,currywurst,salami,aufschnitt,leberwurst,mortadella,chorizo,mettwurst,lyoner,fleischwurst,teewurst,leberkäse,hot dog,weißwurst,cabanossi,landjäger"],
+  ["🥓", "speck,schinken,bacon,kochschinken,schinkenwürfel,parmaschinken,serranoschinken,katenschinken,lachsschinken,bacon streifen,putenschinken"],
+  ["🥩", "fleisch,steak,steaks,rindfleisch,schweinefleisch,hackfleisch,hack,gulasch,schnitzel,braten,lamm,lammfleisch,kotelett,rinderhack,gemischtes hack,rinderfilet,filet,rouladen,geschnetzeltes,schweinebauch,spareribs,ribs,minutensteaks,kalbfleisch,wild,frikadellen,cevapcici,hackbällchen,mett"],
+  ["🍗", "hähnchen,hühnchen,huhn,hähnchenbrust,hühnerbrust,chicken,chicken wings,chicken nuggets,nuggets,pute,putenbrust,putenfleisch,putenschnitzel,hähnchenschenkel,hähnchenkeulen,ente,entenbrust,geflügel,hühnerfrikassee,gans"],
+  ["🐟", "fisch,lachs,lachsfilet,räucherlachs,thunfisch,forelle,kabeljau,seelachs,hering,matjes,makrele,fischstäbchen,sardinen,dorade,pangasius,zander,rotbarsch,scholle,fischfilet,rollmops,backfisch"],
+  ["🦐", "garnelen,shrimps,krabben,scampi,gambas,meeresfrüchte,muscheln,miesmuscheln,hummer"],
+  ["🦑", "tintenfisch,calamari,oktopus,tintenfischringe"],
+  ["🍣", "sushi,nori,noriblätter,wasabi"],
+  ["🥟", "maultaschen,dumplings,teigtaschen,piroggen,pelmeni,gyoza,frühlingsrollen,samosas,empanadas"],
+  ["🧆", "falafel,hummus,humus,tahini"],
+  ["🥙", "döner,gyros,kebab,dürüm,gyrosfleisch"],
+  ["🥧", "quiche,blätterteig,mürbeteig,pizzateig,strudelteig,yufkateig,filoteig,pastete,tarte"],
+  ["🍳", "pfanne,bratfett,rührei,spiegelei"],
+  ["🥫", "dose,dosen,konserve,konserven,ketchup,senf,mayonnaise,mayo,remoulade,soße,sauce,bbq sauce,grillsoße,currysoße,hollandaise,bratensoße,soßenbinder,ravioli dose,eintopf dose,dosenmais,dosenbohnen,kidneybohnen dose,tomatenketchup,aioli,tzatziki,salsa"],
+  ["🍶", "essig,balsamico,weißweinessig,apfelessig,sojasauce,sojasoße,worcestersauce,fischsauce,teriyaki,hoisin,austernsauce"],
+  ["☕", "kaffee,kaffeebohnen,espresso,kaffeepads,kaffeekapseln,kapseln,cappuccino,instantkaffee,filterkaffee,kaffeepulver,latte macchiato,cold brew,kaffeefilter,filtertüten"],
+  ["🍵", "tee,jasmintee,earl grey,ostfriesentee,hagebuttentee,salbeitee,brennnesseltee,yogi tee,grüner tee,schwarzer tee,früchtetee,kräutertee,pfefferminztee,kamillentee,rooibos,matcha,chai,teebeutel,fencheltee,ingwertee,mate"],
+  ["🧋", "eistee,eiskaffee,bubble tea,ice tea"],
+  ["🧃", "saft,orangensaft,o-saft,apfelsaft,multivitaminsaft,traubensaft,smoothie,smoothies,apfelschorle,schorle,saftschorle,direktsaft,nektar,kirschsaft,maracujasaft,ananassaft,tomatensaft,karottensaft,capri-sun,capri sun"],
+  ["🥤", "cola,cola zero,coca-cola,coca cola,pepsi,limo,limonade,fanta,sprite,spezi,mezzo mix,energydrink,energy drink,red bull,monster,club mate,mate tee,fassbrause,bionade,tonic,tonic water,ginger ale,bitter lemon,eistee pulver,sirupwasser,sodastream"],
+  ["💧", "wasser,mineralwasser,sprudel,sprudelwasser,stilles wasser,medium,heilwasser,wasserkisten,kisten wasser"],
+  ["🍺", "bier,pils,pilsner,weizen,weizenbier,weißbier,radler,alster,alkoholfreies bier,helles,export,kölsch,alt,altbier,craft beer,ipa,dunkles,bockbier,cider"],
+  ["🍷", "wein,rotwein,weißwein,rosé,rose,roséwein,glühwein,sangria,merlot,riesling,dornfelder,grauburgunder,chardonnay,lambrusco"],
+  ["🍾", "sekt,prosecco,champagner,crémant,cremant,secco,hugo,aperol,spritz"],
+  ["🥃", "whisky,whiskey,schnaps,rum,wodka,vodka,gin,likör,korn,ouzo,tequila,jägermeister,amaretto,eierlikör,obstler,cognac,weinbrand,baileys,limoncello,mezcal,grappa"],
+  ["🧊", "eiswürfel,crushed ice,crushed eis,eis würfel"],
+  ["🍨", "eis,erdbeereis,schokoladeneis,schokoeis,zitroneneis,mangoeis,joghurteis,nusseis,stracciatellaeis,himbeereis,kirscheis,bananeneis,kokoseis,karamelleis,eiscreme,speiseeis,vanilleeis,schokoeis,stieleis,eis am stiel,sorbet,frozen yoghurt,magnum,cornetto,eiskonfekt"],
+  ["🍿", "popcorn,chips,kartoffelchips,tortillachips,snacks,flips,erdnussflips,cracker,salzcracker,knabberzeug,pringles,crunchips,reiswaffeln,brezeln snack"],
+  ["🥤", "trinkhalme,strohhalme,becher,pappbecher"],
+  ["🧻", "klopapier,toilettenpapier,küchenrolle,küchenpapier,küchentücher,servietten,feuchtes toilettenpapier,zewa,papiertücher"],
+  ["🤧", "taschentücher,tempo,kosmetiktücher"],
+  ["🧼", "seife,handseife,flüssigseife,seifenspender,nachfüllseife,kernseife,desinfektionsmittel,handdesinfektion"],
+  ["🧴", "shampoo,duschgel,duschbad,spülung,haarspülung,conditioner,bodylotion,lotion,creme,gesichtscreme,sonnencreme,sonnenmilch,handcreme,deo,deodorant,deospray,haarspray,haargel,haarschaum,gesichtswasser,abschminktücher,abschminkpads,wattepads,wattestäbchen,nivea,babyöl,lippenpflege,labello,trockenshampoo,haaröl,bodyspray,parfum,parfüm,rasiergel,aftershave"],
+  ["🪥", "zahnbürste,zahnbürsten,zahnpasta,zahncreme,zahnseide,mundspülung,mundwasser,interdentalbürsten,aufsteckbürsten,zahnbürstenköpfe"],
+  ["🪒", "rasierer,rasierklingen,einwegrasierer,rasierschaum,rasierhobel,klingen"],
+  ["💄", "make-up,makeup,lippenstift,mascara,nagellack,nagellackentferner,puder,concealer,foundation,kajal,eyeliner,lidschatten"],
+  ["🩲", "unterwäsche,unterhosen,slips"],
+  ["🧦", "socken,strumpfhose,strumpfhosen"],
+  ["🧽", "schwamm,schwämme,spülmittel,spüli,spülschwamm,putzmittel,allzweckreiniger,reiniger,glasreiniger,badreiniger,wc-reiniger,klostein,wc-steine,scheuermilch,essigreiniger,entkalker,backofenreiniger,fettlöser,putzlappen,putztücher,mikrofasertücher,stahlwolle,bodenreiniger,kalkreiniger,abflussreiniger,rohrreiniger,feuchttücher reinigung,schmierseife,spültücher,spüllappen"],
+  ["🧺", "waschmittel,weichspüler,waschpulver,colorwaschmittel,vollwaschmittel,feinwaschmittel,wollwaschmittel,flüssigwaschmittel,waschmittelpods,fleckentferner,gallseife,hygienespüler,wäscheklammern,farbfangtücher,entkalker waschmaschine,wäschenetz,trocknertücher"],
+  ["🍽️", "spülmaschinentabs,geschirrspültabs,geschirrspülmittel,klarspüler,spülmaschinensalz,regeneriersalz,maschinenpfleger,tabs,pappteller,einweggeschirr,plastikbesteck"],
+  ["🗑️", "müllbeutel,müllsäcke,mülltüten,gelbe säcke,biobeutel,biomüllbeutel,müllbeutel 35l,müllbeutel 60l"],
+  ["🧤", "handschuhe,gummihandschuhe,einweghandschuhe,haushaltshandschuhe,gartenhandschuhe"],
+  ["🔋", "batterien,batterie,akkus,aa batterien,aaa batterien,knopfzellen,ladekabel,powerbank"],
+  ["💡", "glühbirne,glühbirnen,leuchtmittel,led lampe,led-lampe,led birne"],
+  ["🕯️", "kerzen,kerze,teelichter,teelicht,duftkerze,grablicht,stumpenkerzen"],
+  ["🔥", "grillkohle,briketts,anzünder,grillanzünder,streichhölzer,feuerzeug,kaminholz,brennholz"],
+  ["🪣", "eimer,putzeimer"],
+  ["🧹", "besen,kehrblech,wischmopp,mopp,wischbezug,staubsaugerbeutel,staubwedel,swiffer"],
+  ["📦", "frischhaltefolie,alufolie,backpapier,gefrierbeutel,gefrierdosen,zipbeutel,brotdose,butterbrotpapier,frühstücksbeutel,klebeband,paketband,kartons,vorratsdosen,muffinförmchen papier"],
+  ["💊", "medikamente,tabletten,ibuprofen,paracetamol,aspirin,vitamine,vitamin d,magnesium,nasenspray,hustensaft,halstabletten,lutschtabletten,kopfschmerztabletten,nahrungsergänzung,zink,elektrolyte,thermometer"],
+  ["🩹", "pflaster,verband,mullbinden,wundsalbe,desinfektionsspray,blasenpflaster"],
+  ["👶", "windeln,feuchttücher,babybrei,babynahrung,gläschen,quetschies,schnuller,babyshampoo,wundschutzcreme,schwimmwindeln,pre-milch,folgemilch,babymilch"],
+  ["🍼", "fläschchen,babyflasche,sauger"],
+  ["🐱", "katzenfutter,katzenstreu,katzensnacks,nassfutter katze,trockenfutter katze,katzenmilch,kratzbaum"],
+  ["🐶", "hundefutter,hundesnacks,kauknochen,leckerli,hundekotbeutel,trockenfutter hund,nassfutter hund"],
+  ["🐦", "vogelfutter,meisenknödel,vogelsand"],
+  ["🐠", "fischfutter"],
+  ["🐹", "nagerfutter,heu,einstreu,kaninchenfutter"],
+  ["💐", "blumen,blumenstrauß,strauß,tulpen,rosen,schnittblumen"],
+  ["🌱", "blumenerde,erde,pflanzen,saatgut,samen,dünger,kräutertopf,pflanzerde"],
+  ["🎁", "geschenk,geschenke,geschenkpapier,geschenkband,geburtstagskarte,karte,glückwunschkarte"],
+  ["✉️", "briefmarken,briefumschläge,umschläge,briefpapier"],
+  ["✏️", "stifte,kugelschreiber,bleistifte,radiergummi,textmarker,schreibblock,collegeblock,hefte,notizblock,druckerpapier,druckerpatronen,toner,ordner,klebestift"],
+  ["🧯", "rauchmelder,feuerlöscher"],
+  ["🔩", "schrauben,dübel,nägel,werkzeug,kabelbinder,sekundenkleber,kleber,wd-40,silikon"],
+  ["🧷", "sicherheitsnadeln,nähzeug,knöpfe,nähgarn"],
+  ["🧩", "spielzeug,puzzle,spiel,spiele,bastelsachen"],
+  ["🎈", "luftballons,partydeko,deko,servietten party,konfetti,girlande"],
+  ["🚬", "zigaretten,tabak,blättchen,filter"],
+  ["🧃", "trinkpäckchen"],
+  ["🥜", "erdnüsse"],
+  ["🍙", "reisbällchen,onigiri"],
+  ["🍡", "mochi"],
+  ["🥠", "glückskekse"],
+  ["🫕", "fondue,fonduekäse"],
+  ["🥘", "paella,fertiggericht,fertiggerichte,tiefkühlgericht,auflauf,chili con carne,curry fertig"],
+  ["🍛", "currypaste,kokos curry,dal"],
+  ["🥮", "mondkuchen"],
+  ["🍩", "donut,donuts,berliner,krapfen,pfannkuchen gebäck"],
+  ["🎂", "geburtstagskuchen,kerzen geburtstag,tortenkerzen"],
+  ["🍦", "softeis,waffeleis,eishörnchen,eiswaffeln"],
+  ["🥡", "takeaway,essen zum mitnehmen,asianudeln box"],
 ];
+
+const EMOJI_INDEX = (() => {
+  const map = new Map();
+  for (const [emoji, words] of EMOJI_CATALOG) {
+    for (const w of words.split(",")) {
+      const k = foldKey(w);
+      if (k && !map.has(k)) map.set(k, emoji);
+    }
+  }
+  return map;
+})();
+
+const emojiCache = new Map();
+
+function emojiFor(name) {
+  const k = foldKey(name);
+  if (emojiCache.has(k)) return emojiCache.get(k);
+  let result = EMOJI_INDEX.get(k) || null;
+  if (!result) {
+    const words = k.split(" ").filter(Boolean);
+    // 1) ein Wort passt genau („Bio Eier“ → eier)
+    for (const w of words) {
+      if (EMOJI_INDEX.has(w)) { result = EMOJI_INDEX.get(w); break; }
+    }
+    // 2) zusammengesetzte Wörter über die Endung („Vollkornbrot“ → brot), längster Treffer gewinnt
+    if (!result) {
+      let best = "";
+      for (const key of EMOJI_INDEX.keys()) {
+        if (key.length < 4 || key.length <= best.length) continue;
+        if (k.endsWith(key) || words.some((w) => w.endsWith(key))) best = key;
+      }
+      // 3) irgendwo enthalten („Tomatenmark klein“ …)
+      if (!best) {
+        for (const key of EMOJI_INDEX.keys()) {
+          if (key.length >= 5 && key.length > best.length && k.includes(key)) best = key;
+        }
+      }
+      if (best) result = EMOJI_INDEX.get(best);
+      else if (/tee$/.test(words[words.length - 1] || "")) result = "🍵";
+    }
+  }
+  emojiCache.set(k, result);
+  return result;
+}
 
 const failedImages = new Set();
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-const slugify = (name) =>
-  name
-    .toLowerCase()
-    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
-    .replace(/[éèê]/g, "e").replace(/[áàâ]/g, "a")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-
-function emojiFor(name) {
-  const n = name.toLowerCase().trim();
-  const words = n.split(/[\s,\-/]+/);
-  for (const [keys, emoji] of EMOJI) {
-    for (const k of keys) {
-      if (n === k || words.includes(k)) return emoji;
-    }
-  }
-  for (const [keys, emoji] of EMOJI) {
-    for (const k of keys) {
-      if (k.length >= 4 && n.includes(k)) return emoji;
-    }
-  }
-  return null;
-}
+const slugify = (name) => foldKey(name).replace(/ /g, "_");
 
 function hueFor(name) {
   let h = 0;
@@ -87,6 +253,15 @@ function iconHtml(name, useImages) {
     return `<img loading="lazy" alt="" data-slug="${slug}" src="https://web.getbring.com/assets/images/items/${slug}.png">`;
   }
   return fallbackIcon(name);
+}
+
+function storeLogo(store, cls = "slogo") {
+  if (!store) return `<span class="${cls} semoji">🛒</span>`;
+  if (store.domain) {
+    return `<img class="${cls}" alt="" data-letter="${esc((store.name || "?").trim()[0].toUpperCase())}" data-hue="${hueFor(store.name || "")}" data-cls="${cls}"
+      src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(store.domain)}&sz=64">`;
+  }
+  return `<span class="${cls} semoji">${esc(store.emoji || "🏪")}</span>`;
 }
 
 const ICONS = {
@@ -151,7 +326,7 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
 .letter { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-weight: 700; font-size: 1.1rem;
   background: rgba(255,255,255,.22); color: #fff; }
 .name { font-size: .84rem; font-weight: 600; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; hyphens: auto; }
 .spec { font-size: .72rem; opacity: .85; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile.done { pointer-events: none; animation: done .45s ease forwards; }
 .tile .tick { position: absolute; inset: 0; display: grid; place-items: center; border-radius: inherit;
@@ -221,6 +396,36 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
 .btn-del { background: color-mix(in srgb, var(--error-color, #db4437) 14%, transparent); color: var(--error-color, #db4437); }
 .btn-cancel { margin-left: auto; background: var(--secondary-background-color); color: var(--primary-text-color); }
 .btn-save { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; }
+
+.tabs { display: flex; gap: 8px; overflow-x: auto; margin: 14px -18px 0; padding: 2px 18px 4px; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs[hidden] { display: none; }
+.tab { flex: none; display: inline-flex; align-items: center; gap: 7px; border: 0; cursor: pointer; font: inherit;
+  font-size: .88rem; font-weight: 600; padding: 7px 12px 7px 8px; border-radius: 999px; white-space: nowrap;
+  background: var(--secondary-background-color); color: var(--primary-text-color); transition: background .2s, color .2s, box-shadow .2s; }
+.tab .n { font-size: .74rem; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--primary-text-color) 10%, transparent); }
+.tab.active { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; box-shadow: 0 6px 14px -8px var(--acc); }
+.tab.active .n { background: rgba(255,255,255,.25); }
+.slogo { width: 22px; height: 22px; border-radius: 7px; background: #fff; object-fit: contain; flex: none;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.06); display: inline-grid; place-items: center; font-size: 15px; line-height: 1; }
+.slogo.semoji { background: transparent; box-shadow: none; }
+.slogo.sletter { background: hsl(var(--h) 60% 45%); color: #fff; font-weight: 700; font-size: 12px; box-shadow: none; }
+.section { font-size: .78rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--secondary-text-color);
+  margin: 4px 2px 8px; display: flex; align-items: center; gap: 8px; }
+.section + .grid, .section + .list { margin-bottom: 14px; }
+.section .slogo { width: 18px; height: 18px; border-radius: 5px; font-size: 13px; }
+.hint { margin-top: 10px; font-size: .8rem; color: var(--secondary-text-color); text-align: center; }
+.tile .badge-store { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 6px; background: #fff;
+  display: grid; place-items: center; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,.2); font-size: 13px; }
+.tile .badge-store img, .tile .badge-store .slogo { width: 16px; height: 16px; box-shadow: none; border-radius: 4px; }
+.row .badge-store { width: 22px; height: 22px; display: grid; place-items: center; flex: none; }
+.row .badge-store .slogo { width: 20px; height: 20px; }
+.store-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.store-pick button { display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--divider-color); cursor: pointer;
+  font: inherit; font-size: .84rem; padding: 5px 10px 5px 6px; border-radius: 999px; background: transparent; color: var(--primary-text-color); }
+.store-pick button.sel { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 12%, transparent); color: var(--acc); font-weight: 600; }
+.store-pick .slogo { width: 20px; height: 20px; }
+.store-empty { font-size: .8rem; color: var(--secondary-text-color); }
 `;
 
 class EinkaufslisteCard extends HTMLElement {
@@ -230,7 +435,9 @@ class EinkaufslisteCard extends HTMLElement {
     this._items = [];
     this._loaded = false;
     this._pending = new Map(); // uid -> {status, ts}
+    this._assignOverride = new Map(); // key -> {store, ts}
     this._recentOpen = false;
+    this._tab = "";
     this._unsub = null;
     this._seen = new Set();
     this._sig = "";
@@ -240,7 +447,7 @@ class EinkaufslisteCard extends HTMLElement {
     const ent = Object.keys(hass.states).find(
       (e) => e.startsWith("todo.") && hass.states[e].attributes.einkaufsliste
     );
-    return { entity: ent || "", layout: "grid", accent: "bring", show_recent: true, show_icons: true };
+    return { entity: ent || "", layout: "grid", accent: "bring", show_recent: true, show_tabs: true };
   }
 
   static getConfigForm() {
@@ -273,6 +480,7 @@ class EinkaufslisteCard extends HTMLElement {
             { name: "recent_limit", selector: { number: { min: 0, max: 60, mode: "box" } } },
           ],
         },
+        { name: "show_tabs", selector: { boolean: {} } },
         { name: "show_recent", selector: { boolean: {} } },
         { name: "show_icons", selector: { boolean: {} } },
       ],
@@ -284,8 +492,9 @@ class EinkaufslisteCard extends HTMLElement {
           accent: "Farbe",
           sort: "Sortierung",
           recent_limit: "Anzahl „Zuletzt gekauft“",
+          show_tabs: "Reiter für Geschäfte anzeigen",
           show_recent: "„Zuletzt gekauft“ anzeigen",
-          show_icons: "Bring-Bilder verwenden",
+          show_icons: "Bring-Bilder statt Emojis verwenden",
         })[s.name],
     };
   }
@@ -294,7 +503,8 @@ class EinkaufslisteCard extends HTMLElement {
     if (!config || !config.entity) throw new Error("Bitte eine Einkaufsliste (todo-Entität) auswählen.");
     const old = this._config;
     this._config = {
-      layout: "grid", accent: "bring", sort: "bring", show_recent: true, show_icons: true, recent_limit: 24, ...config,
+      layout: "grid", accent: "bring", sort: "bring", show_recent: true, show_icons: false, show_tabs: true,
+      recent_limit: 24, ...config,
     };
     if (old && old.entity !== this._config.entity) this._unsubscribe();
     this._build();
@@ -306,6 +516,7 @@ class EinkaufslisteCard extends HTMLElement {
     this._hass = hass;
     if (first) this._subscribe();
     this._renderHeader();
+    this._renderItems();
   }
 
   connectedCallback() { this._subscribe(); }
@@ -347,6 +558,30 @@ class EinkaufslisteCard extends HTMLElement {
     }
   }
 
+  get _attrs() {
+    return this._hass?.states?.[this._config.entity]?.attributes || {};
+  }
+
+  get _stores() {
+    return Array.isArray(this._attrs.stores) ? this._attrs.stores : [];
+  }
+
+  _storeById(id) {
+    return id ? this._stores.find((s) => s.id === id) || null : null;
+  }
+
+  _storeIdOf(item) {
+    const key = item.summary.trim().toLowerCase();
+    const now = Date.now();
+    const o = this._assignOverride.get(key);
+    const server = (this._attrs.assignments || {})[key] || null;
+    if (o) {
+      if ((o.store || null) === server || now - o.ts > 10000) this._assignOverride.delete(key);
+      else return this._storeById(o.store) ? o.store : null;
+    }
+    return this._storeById(server) ? server : null;
+  }
+
   _status(item) {
     const p = this._pending.get(item.uid);
     return p ? p.status : item.status;
@@ -360,19 +595,33 @@ class EinkaufslisteCard extends HTMLElement {
   _open() { return this._sorted(this._items.filter((i) => this._status(i) === "needs_action")); }
   _recent() { return this._items.filter((i) => this._status(i) === "completed"); }
 
-  async _call(service, data) {
+  async _call(service, data, domain = "todo") {
     try {
-      await this._hass.callService("todo", service, { entity_id: this._config.entity, ...data });
+      await this._hass.callService(domain, service, { entity_id: this._config.entity, ...data });
     } catch (e) {
       this._error = e && e.message ? e.message : "Aktion fehlgeschlagen.";
       this._pending.clear();
+      this._assignOverride.clear();
       this._renderItems();
     }
+  }
+
+  _assign(name, storeId) {
+    const key = name.trim().toLowerCase();
+    this._assignOverride.set(key, { store: storeId || null, ts: Date.now() });
+    this._call("set_store", { item: name, store: storeId || "" }, "einkaufsliste");
   }
 
   _setStatus(uid, status) {
     this._pending.set(uid, { status, ts: Date.now() });
     this._call("update_item", { item: uid, status });
+  }
+
+  /** Wieder auf die Liste setzen – im Geschäfts-Reiter direkt diesem Geschäft zuordnen. */
+  _readd(uid) {
+    const item = this._items.find((i) => i.uid === uid);
+    if (item && this._tab) this._assign(item.summary, this._tab);
+    this._setStatus(uid, "needs_action");
   }
 
   _add(text) {
@@ -381,6 +630,7 @@ class EinkaufslisteCard extends HTMLElement {
     let spec = "";
     const idx = name.indexOf(",");
     if (idx > 0) { spec = name.slice(idx + 1).trim(); name = name.slice(0, idx).trim(); }
+    if (this._tab) this._assign(name, this._tab);
     const existing = this._items.find((i) => i.summary.toLowerCase() === name.toLowerCase());
     if (existing) {
       this._pending.set(existing.uid, { status: "needs_action", ts: Date.now() });
@@ -400,7 +650,7 @@ class EinkaufslisteCard extends HTMLElement {
     const [a1, a2] = ACCENTS[this._config.accent] || ACCENTS.bring;
     this.shadowRoot.innerHTML = `
       <style>${STYLE}</style>
-      <ha-card style="--acc:${a1};--acc2:${a2}">
+      <ha-card lang="de" style="--acc:${a1};--acc2:${a2}">
         <div class="wrap">
           <header>
             <div class="badge">${ICONS.cart}</div>
@@ -412,6 +662,7 @@ class EinkaufslisteCard extends HTMLElement {
             <button class="add-btn" type="submit" title="Hinzufügen">${ICONS.plus}</button>
           </form>
           <div class="suggest"></div>
+          <div class="tabs" hidden></div>
           <div class="items"></div>
           <div class="recent-wrap ${this._recentOpen ? "open" : ""}" hidden>
             <button class="recent-toggle" type="button">Zuletzt gekauft <span class="cnt"></span>${ICONS.chevron}</button>
@@ -424,6 +675,7 @@ class EinkaufslisteCard extends HTMLElement {
             <h3>Artikel bearbeiten</h3>
             <label>Name</label><input id="ed-name">
             <label>Beschreibung (Menge, Marke …)</label><input id="ed-spec" placeholder="z. B. 2 Liter, Bio">
+            <label>Geschäft</label><div class="store-pick"></div>
             <div class="actions">
               <button class="btn-del" type="button">Löschen</button>
               <button class="btn-cancel" type="button">Abbrechen</button>
@@ -436,7 +688,7 @@ class EinkaufslisteCard extends HTMLElement {
     this._els = {
       title: $(".title"), sub: $(".sub"), items: $(".items"), recentWrap: $(".recent-wrap"), recent: $(".recent"),
       cnt: $(".cnt"), input: $("#input"), suggest: $(".suggest"), err: $(".err-slot"), sheet: $(".sheet"),
-      edName: $("#ed-name"), edSpec: $("#ed-spec"), refresh: $("#refresh"),
+      edName: $("#ed-name"), edSpec: $("#ed-spec"), refresh: $("#refresh"), tabs: $(".tabs"), pick: $(".store-pick"),
     };
 
     $("form.add").addEventListener("submit", (ev) => {
@@ -449,7 +701,7 @@ class EinkaufslisteCard extends HTMLElement {
     this._els.suggest.addEventListener("click", (ev) => {
       const chip = ev.target.closest(".chip");
       if (!chip) return;
-      this._setStatus(chip.dataset.uid, "needs_action");
+      this._readd(chip.dataset.uid);
       this._els.input.value = "";
       this._renderSuggest();
       this._renderItems();
@@ -465,6 +717,12 @@ class EinkaufslisteCard extends HTMLElement {
       this._recentOpen = !this._recentOpen;
       this._els.recentWrap.classList.toggle("open", this._recentOpen);
     });
+    this._els.tabs.addEventListener("click", (ev) => {
+      const tab = ev.target.closest(".tab");
+      if (!tab) return;
+      this._tab = tab.dataset.tab || "";
+      this._renderItems();
+    });
 
     // Antippen = erledigt / wieder hinzufügen, langes Drücken = bearbeiten
     const onTap = (ev) => {
@@ -474,7 +732,7 @@ class EinkaufslisteCard extends HTMLElement {
       const uid = el.dataset.uid;
       if (el.closest(".recent")) {
         el.classList.add("readd");
-        setTimeout(() => { this._setStatus(uid, "needs_action"); this._renderItems(); }, 300);
+        setTimeout(() => { this._readd(uid); this._renderItems(); }, 300);
       } else {
         el.classList.add("done");
         setTimeout(() => { this._setStatus(uid, "completed"); this._renderItems(); }, 420);
@@ -487,6 +745,17 @@ class EinkaufslisteCard extends HTMLElement {
       this._pressTimer = setTimeout(() => { this._markLongPress(); this._openEditor(el.dataset.uid); }, 550);
     };
     const endPress = () => clearTimeout(this._pressTimer);
+    const onImgError = (ev) => {
+      const img = ev.target;
+      if (img.tagName !== "IMG") return;
+      if (img.dataset.cls) {
+        img.outerHTML = `<span class="${img.dataset.cls} sletter" style="--h:${img.dataset.hue}">${esc(img.dataset.letter)}</span>`;
+        return;
+      }
+      failedImages.add(img.dataset.slug);
+      const name = img.closest("[data-name]")?.dataset.name || "";
+      img.outerHTML = fallbackIcon(name);
+    };
     for (const container of [this._els.items, this._els.recent]) {
       container.addEventListener("click", onTap);
       container.addEventListener("pointerdown", startPress);
@@ -501,13 +770,9 @@ class EinkaufslisteCard extends HTMLElement {
         this._markLongPress();
         if (this._els.sheet.hidden) this._openEditor(el.dataset.uid);
       });
-      container.addEventListener("error", (ev) => {
-        const img = ev.target;
-        if (img.tagName !== "IMG") return;
-        failedImages.add(img.dataset.slug);
-        const name = img.closest("[data-name]")?.dataset.name || "";
-        img.outerHTML = fallbackIcon(name);
-      }, true);
+    }
+    for (const container of [this._els.items, this._els.recent, this._els.tabs, this._els.pick]) {
+      container.addEventListener("error", onImgError, true);
     }
 
     // Editor
@@ -522,6 +787,12 @@ class EinkaufslisteCard extends HTMLElement {
       this._renderItems();
     });
     $(".btn-save").addEventListener("click", () => this._saveEditor());
+    this._els.pick.addEventListener("click", (ev) => {
+      const b = ev.target.closest("button[data-store]");
+      if (!b) return;
+      this._editStore = b.dataset.store || "";
+      for (const x of this._els.pick.querySelectorAll("button")) x.classList.toggle("sel", x === b);
+    });
     for (const inp of [this._els.edName, this._els.edSpec]) {
       inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") this._saveEditor(); if (ev.key === "Escape") this._closeEditor(); });
     }
@@ -542,10 +813,17 @@ class EinkaufslisteCard extends HTMLElement {
     const item = this._items.find((i) => i.uid === uid);
     if (!item) return;
     this._editUid = uid;
+    this._editStore = this._storeIdOf(item) || "";
+    this._editStoreOrig = this._editStore;
     this._els.edName.value = item.summary;
     this._els.edSpec.value = item.description || "";
+    const stores = this._stores;
+    this._els.pick.innerHTML = stores.length
+      ? [`<button type="button" data-store="" class="${this._editStore ? "" : "sel"}"><span class="slogo semoji">🛒</span>Überall</button>`,
+         ...stores.map((s) => `<button type="button" data-store="${esc(s.id)}" class="${this._editStore === s.id ? "sel" : ""}">
+            ${storeLogo(s)}${esc(s.name)}</button>`)].join("")
+      : `<div class="store-empty">Wähle deine Geschäfte unter <b>Einstellungen → Geräte &amp; Dienste → Einkaufsliste → Konfigurieren</b>.</div>`;
     this._els.sheet.hidden = false;
-    setTimeout(() => this._els.edSpec.focus(), 50);
   }
 
   _closeEditor() {
@@ -560,20 +838,21 @@ class EinkaufslisteCard extends HTMLElement {
     const spec = this._els.edSpec.value.trim();
     if (!name) return;
     const data = { item: item.uid, description: spec };
-    if (name !== item.summary) data.rename = name;
+    const renamed = name !== item.summary;
+    if (renamed) data.rename = name;
+    const storeChanged = this._editStore !== this._editStoreOrig;
     item.summary = name;
     item.description = spec;
     this._call("update_item", data);
+    if (storeChanged) this._assign(name, this._editStore);
     this._closeEditor();
     this._renderItems();
   }
 
   _renderHeader() {
     if (!this._els || !this._hass) return;
-    const st = this._hass.states[this._config.entity];
-    const name = this._config.title || st?.attributes?.list_name || st?.attributes?.friendly_name || "Einkaufsliste";
+    const name = this._config.title || this._attrs.list_name || this._attrs.friendly_name || "Einkaufsliste";
     if (this._els.title.textContent !== name) this._els.title.textContent = name;
-    this._renderSub();
   }
 
   _renderSub() {
@@ -581,63 +860,105 @@ class EinkaufslisteCard extends HTMLElement {
     const n = this._open().length;
     this._els.sub.innerHTML = !this._loaded
       ? "Wird geladen …"
-      : n === 0 ? "Alles erledigt" : `<b>${n}</b> ${n === 1 ? "Artikel" : "Artikel"} auf der Liste`;
+      : n === 0 ? "Alles erledigt" : `<b>${n}</b> Artikel auf der Liste`;
   }
 
-  _tile(item) {
-    const icons = this._config.show_icons !== false;
-    const spec = item.description ? `<span class="spec">${esc(item.description)}</span>` : "";
-    if (this._config.layout === "list" && !this._renderingRecent) {
-      return `<button class="row${this._isNew(item)}" data-uid="${esc(item.uid)}" data-name="${esc(item.summary)}">
-        <span class="ico">${iconHtml(item.summary, icons)}</span>
-        <span class="txt"><span class="name">${esc(item.summary)}</span>${spec}</span>
-        <span class="circle">${ICONS.check}</span></button>`;
-    }
-    return `<button class="tile${this._isNew(item)}" data-uid="${esc(item.uid)}" data-name="${esc(item.summary)}" title="${esc(item.summary)}">
-      <span class="ico">${iconHtml(item.summary, icons)}</span>
-      <span class="name">${esc(item.summary)}</span>${spec}
-      <span class="tick">${ICONS.check}</span></button>`;
-  }
-
-  _isNew(item) {
-    const key = (this._renderingRecent ? "r:" : "o:") + item.uid;
+  _isNew(item, scope) {
+    const key = scope + ":" + item.uid;
     if (this._seen.has(key)) return "";
     this._seen.add(key);
     return this._firstPaint ? "" : " new";
   }
 
+  _tile(item, scope, badgeStore = null) {
+    const icons = this._config.show_icons === true;
+    const spec = item.description ? `<span class="spec">${esc(item.description)}</span>` : "";
+    const badge = badgeStore ? `<span class="badge-store">${storeLogo(badgeStore)}</span>` : "";
+    if (this._config.layout === "list" && scope !== "r") {
+      return `<button class="row${this._isNew(item, scope)}" data-uid="${esc(item.uid)}" data-name="${esc(item.summary)}">
+        <span class="ico">${iconHtml(item.summary, icons)}</span>
+        <span class="txt"><span class="name">${esc(item.summary)}</span>${spec}</span>
+        ${badge}<span class="circle">${ICONS.check}</span></button>`;
+    }
+    return `<button class="tile${this._isNew(item, scope)}" data-uid="${esc(item.uid)}" data-name="${esc(item.summary)}" title="${esc(item.summary)}">
+      ${badge}<span class="ico">${iconHtml(item.summary, icons)}</span>
+      <span class="name">${esc(item.summary)}</span>${spec}
+      <span class="tick">${ICONS.check}</span></button>`;
+  }
+
+  _block(items, scope, badgeStore = null) {
+    const cls = this._config.layout === "list" ? "list" : "grid";
+    return `<div class="${cls}">${items.map((i) => this._tile(i, scope, badgeStore)).join("")}</div>`;
+  }
+
   _renderItems() {
-    if (!this._els) return;
+    if (!this._els || !this._config) return;
     this._renderSub();
     const open = this._open();
     const els = this._els;
+    const useTabs = this._config.show_tabs !== false;
+
+    // Artikel nach Geschäft gruppieren
+    const general = [];
+    const byStore = new Map();
+    for (const item of open) {
+      const sid = useTabs ? this._storeIdOf(item) : null;
+      if (!sid) general.push(item);
+      else {
+        if (!byStore.has(sid)) byStore.set(sid, []);
+        byStore.get(sid).push(item);
+      }
+    }
+    const storeTabs = this._stores.filter((s) => byStore.has(s.id));
+    if (this._tab && !byStore.has(this._tab)) this._tab = "";
+
     const sig = JSON.stringify([
-      this._loaded, this._error, open.map((i) => [i.uid, i.summary, i.description]),
+      this._loaded, this._error, this._tab, this._config.layout,
+      open.map((i) => [i.uid, i.summary, i.description, useTabs ? this._storeIdOf(i) : null]),
       this._recent().map((i) => [i.uid, i.summary]),
+      storeTabs.map((s) => s.id),
     ]);
     if (sig === this._sig) return;
     this._sig = sig;
     this._firstPaint = this._seen.size === 0;
 
+    // Reiter
+    els.tabs.hidden = storeTabs.length === 0;
+    if (storeTabs.length) {
+      els.tabs.innerHTML = [
+        `<button class="tab ${this._tab ? "" : "active"}" data-tab=""><span class="slogo semoji">🛒</span>Allgemein<span class="n">${general.length}</span></button>`,
+        ...storeTabs.map((s) => `<button class="tab ${this._tab === s.id ? "active" : ""}" data-tab="${esc(s.id)}">
+          ${storeLogo(s)}${esc(s.name)}<span class="n">${byStore.get(s.id).length + general.length}</span></button>`),
+      ].join("");
+    }
+
+    // Inhalt
     if (!this._loaded && !this._error) {
       els.items.innerHTML = `<div class="empty">Liste wird geladen …</div>`;
     } else if (open.length === 0) {
       els.items.innerHTML = `<div class="empty">${ICONS.party}<div class="big">Alles eingekauft!</div>
         <div>Füge oben etwas hinzu oder tippe unten auf einen Artikel.</div></div>`;
+    } else if (this._tab) {
+      const store = this._storeById(this._tab);
+      const own = byStore.get(this._tab) || [];
+      let html = `<div class="section">${storeLogo(store)}Nur bei ${esc(store.name)}</div>${this._block(own, "s", store)}`;
+      if (general.length) html += `<div class="section"><span class="slogo semoji">🛒</span>Überall erhältlich</div>${this._block(general, "g")}`;
+      els.items.innerHTML = html;
     } else {
-      this._renderingRecent = false;
-      const cls = this._config.layout === "list" ? "list" : "grid";
-      els.items.innerHTML = `<div class="${cls}">${open.map((i) => this._tile(i)).join("")}</div>`;
+      const others = open.length - general.length;
+      let html = general.length
+        ? this._block(general, "g")
+        : `<div class="empty"><div class="big">Nichts Allgemeines</div><div>Alle Artikel gehören zu einem Geschäft.</div></div>`;
+      if (others) html += `<div class="hint">+ ${others} Artikel in den Geschäfts-Reitern</div>`;
+      els.items.innerHTML = html;
     }
 
     const recent = this._recent().slice(0, Number(this._config.recent_limit ?? 24));
     const showRecent = this._config.show_recent !== false && recent.length > 0;
     els.recentWrap.hidden = !showRecent;
     if (showRecent) {
-      this._renderingRecent = true;
       els.cnt.textContent = recent.length;
-      els.recent.innerHTML = recent.map((i) => this._tile(i)).join("");
-      this._renderingRecent = false;
+      els.recent.innerHTML = recent.map((i) => this._tile(i, "r")).join("");
     }
 
     els.err.innerHTML = this._error ? `<div class="error">${esc(this._error)}</div>` : "";
@@ -661,7 +982,7 @@ if (!customElements.get("einkaufsliste-card")) {
   window.customCards.push({
     type: "einkaufsliste-card",
     name: "Einkaufsliste (Bring!)",
-    description: "Deine Bring!-Einkaufsliste als hübsche Kacheln – antippen zum Abhaken.",
+    description: "Deine Bring!-Einkaufsliste als hübsche Kacheln – mit Reitern für deine Geschäfte.",
     preview: true,
     documentationURL: "https://github.com/domiundergroun/Einkaufsliste",
   });

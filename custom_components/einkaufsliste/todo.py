@@ -5,15 +5,19 @@ from __future__ import annotations
 import uuid as uuidlib
 from typing import Any
 
+import voluptuous as vol
+
 from homeassistant.components.todo import (
     TodoItem,
     TodoItemStatus,
     TodoListEntity,
     TodoListEntityFeature,
 )
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -24,6 +28,12 @@ from .coordinator import EinkaufslisteCoordinator
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
     async_add_entities([EinkaufslisteTodo(entry.runtime_data)])
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        "set_store",
+        {vol.Required("item"): cv.string, vol.Optional("store", default=""): vol.Any(None, cv.string)},
+        "async_set_store",
+    )
 
 
 class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEntity):
@@ -84,7 +94,15 @@ class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEnt
         return {
             "list_name": entry.data.get(CONF_LIST_NAME, entry.title),
             "einkaufsliste": True,
+            "stores": self.coordinator.stores,
+            "assignments": dict(self.coordinator.assignments),
         }
+
+    async def async_set_store(self, item: str, store: str | None = "") -> None:
+        """Artikel (per Name oder UID) einem Geschäft zuordnen; leer = allgemein."""
+        current, _ = self._find(item)
+        name = current.name if current else item
+        await self.coordinator.async_set_store(name, store or None)
 
     # ---------------------------------------------------------------- helpers
     def _find(self, uid: str) -> tuple[BringItem | None, bool]:
@@ -140,6 +158,7 @@ class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEnt
         spec = item.description if item.description is not None else ""
         changes: list[dict[str, str]] = []
         if new_name != current.name:
+            await self.coordinator.async_rename_assignment(current.name, new_name)
             changes.append(
                 {"itemId": current.name, "spec": "", "uuid": current.uuid, "operation": OP_REMOVE}
             )
@@ -156,7 +175,3 @@ class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEnt
                 )
         if changes:
             await self._send(changes)
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        super()._handle_coordinator_update()

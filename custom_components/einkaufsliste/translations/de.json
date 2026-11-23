@@ -39,10 +39,16 @@
     "step": {
       "init": {
         "title": "Einkaufsliste – Einstellungen",
-        "description": "Wähle die angezeigte Bring!-Liste und wie oft sie aktualisiert wird.",
+        "description": "Wähle die angezeigte Bring!-Liste, deine Geschäfte und wie oft die Liste aktualisiert wird.",
         "data": {
           "list_uuid": "Liste",
-          "scan_interval": "Aktualisierungsintervall"
+          "scan_interval": "Aktualisierungsintervall",
+          "stores": "Deine Geschäfte",
+          "custom_stores": "Weitere Geschäfte (mit Komma getrennt)"
+        },
+        "data_description": {
+          "stores": "Diese Geschäfte kannst du Artikeln in der Karte zuordnen (lange auf einen Artikel drücken). Für jedes Geschäft mit zugeordneten Artikeln erscheint ein eigener Reiter.",
+          "custom_stores": "z. B. Hofladen Meier, Bioladen"
         }
       }
     },
@@ -50,6 +56,22 @@
       "invalid_auth": "Anmeldung bei Bring! fehlgeschlagen – bitte Integration neu anmelden.",
       "cannot_connect": "Bring! ist gerade nicht erreichbar.",
       "already_configured": "Diese Liste ist bereits als eigener Eintrag eingerichtet."
+    }
+  },
+  "services": {
+    "set_store": {
+      "name": "Geschäft zuordnen",
+      "description": "Ordnet einen Artikel einem Geschäft zu (leer = allgemein).",
+      "fields": {
+        "item": {
+          "name": "Artikel",
+          "description": "Name oder UID des Artikels"
+        },
+        "store": {
+          "name": "Geschäft",
+          "description": "ID des Geschäfts, z. B. aldi_sued"
+        }
+      }
     }
   }
 }

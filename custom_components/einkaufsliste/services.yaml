@@ -1,0 +1,16 @@
+set_store:
+  target:
+    entity:
+      integration: einkaufsliste
+      domain: todo
+  fields:
+    item:
+      required: true
+      example: Gouda
+      selector:
+        text:
+    store:
+      required: false
+      example: aldi_sued
+      selector:
+        text:
