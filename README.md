@@ -33,7 +33,7 @@ Ordner `custom_components/einkaufsliste` nach `config/custom_components/` kopier
 2. In der Karte lange auf einen Artikel drücken → Geschäft wählen.
 3. Sobald einem Geschäft Artikel zugeordnet sind, erscheint oben ein Reiter dafür:
    - **Allgemein** zeigt alle Artikel ohne Geschäft.
-   - **Geschäfts-Reiter** erscheinen nur als Logo (mit Anzahl) und zeigen „Nur bei …“ plus alle allgemeinen Artikel.
+   - **Geschäfts-Reiter** erscheinen als Logo (mit Anzahl) – ohne Logo als farbiger Name – und zeigen „Nur bei …“ plus alle allgemeinen Artikel.
 4. Die Zuordnung wird pro Artikelname gemerkt – kommt „Gouda“ wieder auf die Liste, landet er automatisch bei seinem Geschäft. Wer in einem Geschäfts-Reiter etwas hinzufügt, ordnet es direkt diesem Geschäft zu.
 
 Die Logos werden in der Karte direkt über die Webseite des Geschäfts geladen. Ohne Internet erscheint ein farbiger Anfangsbuchstabe.

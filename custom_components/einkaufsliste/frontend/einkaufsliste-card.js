@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.1.1";
+const CARD_VERSION = "1.1.2";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -228,6 +228,7 @@ function emojiFor(name) {
 }
 
 const failedImages = new Set();
+const failedLogos = new Set();
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -414,6 +415,22 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
 .tab.icon-tab.active { background: color-mix(in srgb, var(--acc) 14%, transparent); box-shadow: inset 0 0 0 2px var(--acc); }
 .tab.icon-tab.active .n { background: var(--acc2); }
 .tabs { padding-top: 7px; }
+.tab.cart-tab .cart-ico { width: 28px; height: 28px; display: grid; place-items: center; color: var(--acc); }
+.tab.cart-tab .cart-ico svg { width: 24px; height: 24px; }
+.tab.cart-tab.active { background: linear-gradient(135deg, var(--acc), var(--acc2)); box-shadow: 0 6px 14px -8px var(--acc); }
+.tab.cart-tab.active .cart-ico { color: #fff; }
+.tab.cart-tab.active .n { background: #fff; color: var(--acc); }
+.tab.name-tab { position: relative; height: 40px; padding: 0 14px; border-radius: 14px; gap: 6px; overflow: visible;
+  background: linear-gradient(135deg, hsl(var(--h) 75% 55% / .16), hsl(calc(var(--h) + 25) 75% 55% / .10));
+  box-shadow: inset 0 0 0 1px hsl(var(--h) 60% 50% / .25); color: color-mix(in srgb, hsl(var(--h) 65% 42%) 60%, var(--primary-text-color)); }
+.tab.name-tab .nt-name { font-weight: 800; font-size: .86rem; letter-spacing: .01em; }
+.tab.name-tab .nt-emoji { font-size: 18px; line-height: 1; }
+.tab.name-tab .n { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px;
+  display: grid; place-items: center; font-size: .68rem; line-height: 1; background: var(--acc); color: #fff;
+  border: 2px solid var(--ha-card-background, var(--card-background-color, #fff)); }
+.tab.name-tab.active { background: linear-gradient(135deg, hsl(var(--h) 70% 50%), hsl(calc(var(--h) + 25) 70% 45%)); color: #fff;
+  box-shadow: 0 6px 14px -8px hsl(var(--h) 70% 45%); }
+.tab.name-tab.active .n { background: #fff; color: hsl(var(--h) 60% 40%); }
 .slogo { width: 22px; height: 22px; border-radius: 7px; background: #fff; object-fit: contain; flex: none;
   box-shadow: 0 0 0 1px rgba(0,0,0,.06); display: inline-grid; place-items: center; font-size: 15px; line-height: 1; }
 .slogo.semoji { background: transparent; box-shadow: none; }
@@ -753,9 +770,29 @@ class EinkaufslisteCard extends HTMLElement {
       this._pressTimer = setTimeout(() => { this._markLongPress(); this._openEditor(el.dataset.uid); }, 550);
     };
     const endPress = () => clearTimeout(this._pressTimer);
+    const logoFailed = (img) => {
+      const tab = img.closest(".icon-tab[data-domain]");
+      if (tab) {
+        failedLogos.add(tab.dataset.domain);
+        const n = tab.querySelector(".n")?.textContent || "";
+        const emoji = tab.dataset.emoji;
+        tab.classList.replace("icon-tab", "name-tab");
+        tab.style.setProperty("--h", hueFor(tab.dataset.name));
+        tab.innerHTML = (emoji && emoji !== "🛒" && emoji !== "🏪" ? `<span class="nt-emoji">${esc(emoji)}</span>` : "") +
+          `<span class="nt-name">${esc(tab.dataset.name)}</span><span class="n">${esc(n)}</span>`;
+        return true;
+      }
+      return false;
+    };
+    // Google liefert für unbekannte Seiten einen winzigen Platzhalter (Weltkugel) – dann lieber den Namen zeigen
+    this._els.tabs.addEventListener("load", (ev) => {
+      const img = ev.target;
+      if (img.tagName === "IMG" && img.naturalWidth > 0 && img.naturalWidth < 32) logoFailed(img);
+    }, true);
     const onImgError = (ev) => {
       const img = ev.target;
       if (img.tagName !== "IMG") return;
+      if (logoFailed(img)) return;
       if (img.dataset.cls) {
         img.outerHTML = `<span class="${img.dataset.cls} sletter" style="--h:${img.dataset.hue}">${esc(img.dataset.letter)}</span>`;
         return;
@@ -933,10 +970,22 @@ class EinkaufslisteCard extends HTMLElement {
     // Reiter
     els.tabs.hidden = storeTabs.length === 0;
     if (storeTabs.length) {
+      const tabCls = (id) => (this._tab === id ? "active" : "");
+      const nameTab = (st, n) => {
+        const emoji = st.emoji && st.emoji !== "🏪" && st.emoji !== "🛒" ? `<span class="nt-emoji">${esc(st.emoji)}</span>` : "";
+        return `<button class="tab name-tab ${tabCls(st.id)}" data-tab="${esc(st.id)}" style="--h:${hueFor(st.name)}"
+          title="${esc(st.name)}">${emoji}<span class="nt-name">${esc(st.name)}</span><span class="n">${n}</span></button>`;
+      };
       els.tabs.innerHTML = [
-        `<button class="tab ${this._tab ? "" : "active"}" data-tab=""><span class="slogo semoji">🛒</span>Allgemein<span class="n">${general.length}</span></button>`,
-        ...storeTabs.map((s) => `<button class="tab icon-tab ${this._tab === s.id ? "active" : ""}" data-tab="${esc(s.id)}"
-          title="${esc(s.name)}" aria-label="${esc(s.name)}">${storeLogo(s)}<span class="n">${byStore.get(s.id).length}</span></button>`),
+        `<button class="tab icon-tab cart-tab ${tabCls("")}" data-tab="" title="Allgemein" aria-label="Allgemein">
+          <span class="cart-ico">${ICONS.cart}</span><span class="n">${general.length}</span></button>`,
+        ...storeTabs.map((st) => {
+          const n = byStore.get(st.id).length;
+          if (!st.domain || failedLogos.has(st.domain)) return nameTab(st, n);
+          return `<button class="tab icon-tab ${tabCls(st.id)}" data-tab="${esc(st.id)}" data-domain="${esc(st.domain)}"
+            data-name="${esc(st.name)}" data-emoji="${esc(st.emoji || "")}" title="${esc(st.name)}" aria-label="${esc(st.name)}">
+            ${storeLogo(st)}<span class="n">${n}</span></button>`;
+        }),
       ].join("");
     }
 
