@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.3.1";
+const CARD_VERSION = "1.3.2";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -549,6 +549,27 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
 .pk-cancel { margin-top: 16px; border: 0; background: transparent; color: var(--secondary-text-color); font: inherit; font-weight: 600;
   cursor: pointer; padding: 8px 16px; border-radius: 12px; }
 .pk-cancel:hover { background: var(--secondary-background-color); }
+/* Einklappbare Bereiche in den Einstellungen */
+.acc { border-bottom: 1px solid var(--divider-color); }
+.acc:last-child { border-bottom: 0; }
+.acc > summary { list-style: none; display: flex; align-items: center; gap: 10px; padding: 14px 2px; cursor: pointer; user-select: none; }
+.acc > summary::-webkit-details-marker { display: none; }
+.acc-ico { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 18px; flex: none;
+  background: color-mix(in srgb, var(--acc) 12%, transparent); }
+.acc-ico .slogo { width: 22px; height: 22px; }
+.acc-t { font-weight: 700; font-size: 1rem; }
+.acc-sub { margin-left: auto; font-size: .8rem; color: var(--secondary-text-color); max-width: 45%; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.acc > summary .pill { margin-left: auto; }
+.acc-chev { width: 22px; height: 22px; color: var(--secondary-text-color); flex: none; transition: transform .25s; }
+.acc-chev svg { width: 22px; height: 22px; }
+.acc[open] > summary .acc-chev { transform: rotate(180deg); }
+.acc-body { padding: 0 2px 16px; animation: fade .2s ease; }
+.acc.sub { border: 1.5px solid var(--divider-color); border-radius: 16px; padding: 0 12px; }
+.acc.sub[open] { border-color: color-mix(in srgb, var(--acc) 45%, var(--divider-color)); }
+.acc.sub > summary { padding: 10px 0; }
+.acc-body h5 { margin: 16px 0 2px; font-size: .9rem; }
+.acc-body h5:first-child { margin-top: 2px; }
 `;
 
 class EinkaufslisteCard extends HTMLElement {
@@ -1073,6 +1094,8 @@ class EinkaufslisteCard extends HTMLElement {
       if (li) {
         this._set.list_uuid = li.dataset.list;
         for (const x of this._els.spBody.querySelectorAll(".li")) x.classList.toggle("on", x === li);
+        const sum = this._els.spBody.querySelector(".list-sum");
+        if (sum) sum.textContent = li.textContent.trim();
         return;
       }
       if (ev.target.closest("#sp-login")) this._settingsLogin();
@@ -1122,32 +1145,43 @@ class EinkaufslisteCard extends HTMLElement {
     const st = this._set;
     const chips = st.catalog.map((c) => `<button type="button" class="sc ${st.stores.has(c.id) ? "on" : ""}" data-store="${esc(c.id)}"
         data-search="${esc(foldKey(c.name))}">${storeLogo(c)}<span>${esc(c.name)}</span><i>${ICONS.check}</i></button>`).join("");
+    const listName = st.lists.find((l) => l.uuid === st.list_uuid)?.name || "";
+    const bring = { name: "Bring!", domain: "getbring.com", emoji: "🛒" };
     this._els.spBody.innerHTML = `
-      <section>
-        <h4>🏬 Deine Geschäfte <span class="pill"><span class="sel-count">${st.stores.size}</span> gewählt</span></h4>
-        <p class="sp-hint">Diese Geschäfte kannst du Artikeln zuordnen (lange auf einen Artikel drücken).</p>
-        <input id="sp-search" class="sp-input" placeholder="Geschäft suchen …">
-        <div class="sc-grid">${chips}</div>
-        <label class="sp-label">Weitere Geschäfte (mit Komma getrennt)</label>
-        <input id="sp-custom" class="sp-input" placeholder="z. B. Hofladen Meier, Bioladen" value="${esc(st.custom_stores)}">
-      </section>
-      <section>
-        <h4>🔑 Bring!-Zugang</h4>
-        <label class="sp-label">E-Mail</label>
-        <input id="sp-email" class="sp-input" type="email" autocomplete="username" value="${esc(st.email)}">
-        <label class="sp-label">Passwort</label>
-        <input id="sp-pass" class="sp-input" type="password" autocomplete="new-password" placeholder="•••••••• (unverändert lassen)">
-        <button type="button" class="sp-btn" id="sp-login">Anmelden &amp; Listen laden</button>
-      </section>
-      <section>
-        <h4>📝 Liste</h4>
-        <div class="lists">${this._listsHtml()}</div>
-      </section>
-      <section>
-        <h4>🔄 Aktualisierung</h4>
-        <label class="sp-label">Bring alle … Sekunden abfragen</label>
-        <input id="sp-interval" class="sp-input sp-num" type="number" min="15" max="3600" step="5" value="${esc(st.scan_interval)}">
-      </section>`;
+      <details class="acc">
+        <summary><span class="acc-ico">🏬</span><span class="acc-t">Deine Geschäfte</span>
+          <span class="pill"><span class="sel-count">${st.stores.size}</span> gewählt</span><span class="acc-chev">${ICONS.chevron}</span></summary>
+        <div class="acc-body">
+          <p class="sp-hint">Diese Geschäfte kannst du Artikeln zuordnen (lange auf einen Artikel drücken).</p>
+          <input id="sp-search" class="sp-input" placeholder="Geschäft suchen …">
+          <div class="sc-grid">${chips}</div>
+          <label class="sp-label">Weitere Geschäfte (mit Komma getrennt)</label>
+          <input id="sp-custom" class="sp-input" placeholder="z. B. Hofladen Meier, Bioladen" value="${esc(st.custom_stores)}">
+        </div>
+      </details>
+      <details class="acc">
+        <summary><span class="acc-ico">📝</span><span class="acc-t">Listen</span>
+          <span class="acc-sub list-sum">${esc(listName)}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
+        <div class="acc-body">
+          <details class="acc sub">
+            <summary><span class="acc-ico">${storeLogo(bring)}</span><span class="acc-t">Bring!</span>
+              <span class="acc-sub">${esc(st.email)}</span><span class="acc-chev">${ICONS.chevron}</span></summary>
+            <div class="acc-body">
+              <h5>🔑 Anmeldung</h5>
+              <label class="sp-label">E-Mail</label>
+              <input id="sp-email" class="sp-input" type="email" autocomplete="username" value="${esc(st.email)}">
+              <label class="sp-label">Passwort</label>
+              <input id="sp-pass" class="sp-input" type="password" autocomplete="new-password" placeholder="•••••••• (unverändert lassen)">
+              <button type="button" class="sp-btn" id="sp-login">Anmelden &amp; Listen laden</button>
+              <h5>📋 Bring-Liste</h5>
+              <div class="lists">${this._listsHtml()}</div>
+              <h5>🔄 Aktualisierung</h5>
+              <label class="sp-label">Bring alle … Sekunden abfragen</label>
+              <input id="sp-interval" class="sp-input sp-num" type="number" min="15" max="3600" step="5" value="${esc(st.scan_interval)}">
+            </div>
+          </details>
+        </div>
+      </details>`;
   }
 
   _listsHtml() {
