@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.7.1";
+const CARD_VERSION = "1.8.0";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -255,6 +255,7 @@ function fallbackIcon(name) {
 const CUSTOM_SVG = {
   wasser: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="b" x1="0" x2="1"><stop offset="0" stop-color="#5EC4F2"/><stop offset=".55" stop-color="#9BDDF8"/><stop offset="1" stop-color="#4FB2E6"/></linearGradient></defs><rect x="27" y="3" width="10" height="6" rx="1.6" fill="#1D7FC4"/><rect x="26" y="8.5" width="12" height="2.6" rx="1" fill="#155F95"/><path d="M27.5 11h9v3.5c0 2 5.5 4.5 5.5 9.5v31c0 3-2.2 5-5 5H27c-2.8 0-5-2-5-5V24c0-5 5.5-7.5 5.5-9.5z" fill="url(#b)"/><path d="M22 31h20v13H22z" fill="#1D7FC4"/><path d="M22 36.5c3.3-2.4 6.7 2.4 10 0s6.7 2.4 10 0V44H22z" fill="#0F5E99"/><path d="M32 33.2c-1.6 2.2-2.4 3.6-2.4 4.6a2.4 2.4 0 0 0 4.8 0c0-1-.8-2.4-2.4-4.6z" fill="#fff"/><path d="M25.5 20c-.8 1.3-1.2 2.7-1.2 4v24" stroke="#fff" stroke-opacity=".7" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M22 51h20" stroke="#4FB2E6" stroke-width="1.2" opacity=".6"/></svg>`,
   milch: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M20 20 26 8h20l-6 12z" fill="#E3EEF7"/><path d="M26 8h20l-6 12H20z" fill="#2F7BD3" opacity=".0"/><path d="M40 20l6-12 2 14v34l-8 4z" fill="#C9D8E6"/><path d="M20 20h20v40H22a2 2 0 0 1-2-2z" fill="#F7FAFC"/><path d="M40 20l8 2v34l-8 4z" fill="#DCE7F1"/><path d="M28.5 4.5h9v4h-9z" fill="#E3EEF7"/><path d="M28.5 4.5h9l-1 4h-7z" fill="#C9D8E6"/><path d="M20 20h20v11c-3.3 2.4-6.7-2.4-10 0s-6.7-2.4-10 0z" fill="#2F7BD3"/><path d="M40 20l8 2v11c-2.7 1.6-5.3-1.6-8 0z" fill="#2466B3"/><path d="M20 20l6-12h20l-6 12z" fill="#3B8BE0"/><circle cx="30" cy="44" r="6.5" fill="#fff" stroke="#2F7BD3" stroke-width="1.6"/><path d="M30 39.5c-1.8 2.5-2.7 4-2.7 5.1a2.7 2.7 0 0 0 5.4 0c0-1.1-.9-2.6-2.7-5.1z" fill="#2F7BD3"/><path d="M23.5 36v19" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".8"/></svg>`,
+  eier: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><ellipse cx="32" cy="57" rx="22" ry="3.2" fill="#000" opacity=".08"/><path d="M22 10c-8 0-13 13.5-13 23.5C9 43 14.6 50 22 50s13-7 13-16.5C35 23.5 30 10 22 10z" fill="#D9A06A"/><path d="M22 10c-8 0-13 13.5-13 23.5 0 6 2.2 11 6 13.8C11.5 33 17 15 22 10z" fill="#C58A54"/><path d="M15.5 22c-1.6 3-2.4 6-2.6 9" stroke="#F0C79C" stroke-width="2.2" stroke-linecap="round" fill="none"/><path d="M42 12c-8.5 0-14 14.5-14 25 0 10 6 17 14 17s14-7 14-17c0-10.5-5.5-25-14-25z" fill="#FBF6EC"/><path d="M42 12c-8.5 0-14 14.5-14 25 0 6.5 2.4 11.8 6.4 14.8C30.6 37 36.5 17 42 12z" fill="#EFE6D3"/><path d="M35 25c-1.8 3.2-2.7 6.6-2.9 10" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="47" cy="40" r=".9" fill="#E3D6BC"/><circle cx="44.5" cy="45.5" r=".7" fill="#E3D6BC"/><circle cx="49.5" cy="33" r=".6" fill="#E3D6BC"/></svg>`,
   knoblauch: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M32 4c-1.4 4.5-1.6 9-1.1 13.5h2.2C33.6 13 33.4 8.5 32 4z" fill="#C9B48A"/><path d="M32 15C25 20 9 24 9 39c0 11 10 19 23 19s23-8 23-19c0-15-16-19-23-24z" fill="#F6EFE0"/><path d="M32 15c-4 5.5-12 10-12 24 0 10 5 17.5 12 19C19 58 9 50 9 39c0-15 16-19 23-24z" fill="#EADFC7"/><path d="M32 15c4 5.5 12 10 12 24 0 10-5 17.5-12 19 13 0 23-8 23-19 0-15-16-19-23-24z" fill="#FCF8F0"/><path d="M32 17c-1.6 7-2.2 14-1.2 22 .7 6 1.2 12 1.2 19" stroke="#D8C7A3" stroke-width="1.4" fill="none"/><path d="M21 25c-3.6 6.5-4.2 16-1.2 25M43 25c3.6 6.5 4.2 16 1.2 25" stroke="#D8C7A3" stroke-width="1.2" fill="none"/><path d="M9.6 43c3.4 8 12 13 22.4 13s19-5 22.4-13c-4 4.5-12 8-22.4 8s-18.4-3.5-22.4-8z" fill="#C690C6" opacity=".6"/><path d="M26.5 57.5c1.8 1.4 3.8 1.9 5.5 1.9s3.7-.5 5.5-1.9" stroke="#B59A6A" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M28.5 59l-1.2 2.6M32 59.5v3M35.5 59l1.2 2.6" stroke="#B59A6A" stroke-width="1.2" stroke-linecap="round"/><path d="M15.5 30c-2 3.6-2.8 7.6-2.2 11.4" stroke="#fff" stroke-width="2.2" stroke-linecap="round" opacity=".95" fill="none"/></svg>`,
 };
 const CUSTOM_IMAGE_KEYS = {
@@ -262,6 +263,8 @@ const CUSTOM_IMAGE_KEYS = {
   "wasser still": "wasser", "wasser medium": "wasser", "wasser spritzig": "wasser", tafelwasser: "wasser", trinkwasser: "wasser",
   milch: "milch", vollmilch: "milch", frischmilch: "milch", "h milch": "milch", "fettarme milch": "milch", "laktosefreie milch": "milch",
   "bio milch": "milch", weidemilch: "milch",
+  eier: "eier", ei: "eier", "bio eier": "eier", bioeier: "eier", freilandeier: "eier", "freiland eier": "eier",
+  "eier m": "eier", "eier l": "eier", "braune eier": "eier", "weisse eier": "eier", "eier 10er": "eier", "eier 6er": "eier",
   knoblauch: "knoblauch", knoblauchzehen: "knoblauch", knoblauchzehe: "knoblauch", knofi: "knoblauch", "frischer knoblauch": "knoblauch",
 };
 function customImage(name) {

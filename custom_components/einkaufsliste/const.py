@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "einkaufsliste"
-VERSION = "1.7.1"
+VERSION = "1.8.0"
 
 CONF_LIST_UUID = "list_uuid"
 CONF_LIST_NAME = "list_name"

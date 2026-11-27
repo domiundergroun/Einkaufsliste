@@ -54,6 +54,18 @@ Mit der Integration [Kochbuch](https://github.com/domiundergroun/Kochrezepte) (a
 
 Ist die Verbindung aktiv, erscheint in der Karte unter ⚙️ ein Bereich **Kochbuch** mit grünem Lämpchen. Ohne Verbindung wird er nicht angezeigt.
 
+## Android-Widget
+Mit der Home-Assistant-App lässt sich die Liste auf den Startbildschirm legen (lange auf den Startbildschirm tippen → Widgets → Home Assistant):
+
+- **To-do-Liste** (empfohlen zum Öffnen): Liste `todo.zuhause` wählen. Zeigt die Artikel; ein Tipp auf die Überschrift öffnet die Liste in der App.
+- **Vorlage** (für die Anzahl): Die Liste liefert dafür die Attribute `anzahl` und `artikel`. Diese Vorlage einfügen (Entität anpassen), Design „Transparent“ oder „Dynamische Farben“:
+
+```jinja
+<p style="text-align:center"><font color='#E5534B'><big><b>🛒 {{ states('todo.zuhause') | int(0) }}</b></big></font><br><b>auf der Einkaufsliste</b><br><font color='#9AA0A6'>{{ (state_attr('todo.zuhause','artikel') or [])[:3] | join(', ') }}{{ ' …' if (state_attr('todo.zuhause','artikel') or []) | length > 3 else '' }}</font></p>
+```
+
+Ein Tipp auf das Vorlagen-Widget aktualisiert es nur – zum Öffnen der Liste das To-do-Widget daneben legen.
+
 ## Geschäfte
 1. **Einstellungen → Geräte & Dienste → Einkaufsliste (Bring!) → Konfigurieren** → unter „Deine Geschäfte“ auswählen (eigene Geschäfte mit Komma getrennt ergänzen).
 2. In der Karte lange auf einen Artikel drücken → Geschäft wählen.

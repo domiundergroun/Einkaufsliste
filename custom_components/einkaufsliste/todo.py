@@ -104,6 +104,9 @@ class EinkaufslisteTodo(CoordinatorEntity[EinkaufslisteCoordinator], TodoListEnt
             "stores": self.coordinator.stores,
             "assignments": dict(self.coordinator.assignments),
             "checked": {uid: round(ts) for uid, ts in self.coordinator.checked.items()},
+            # Für Widgets/Vorlagen (z. B. Android-Template-Widget): offene Artikel
+            "anzahl": len(self.coordinator.data.purchase) if self.coordinator.data else 0,
+            "artikel": [i.name for i in (self.coordinator.data.purchase if self.coordinator.data else [])][:30],
             **self._sync_attrs(),
         }
 
