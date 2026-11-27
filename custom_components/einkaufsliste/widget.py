@@ -75,7 +75,7 @@ def widget_html(list_name: str, items: list[str], done_today: int = 0, max_items
         done = f"<br><small><font color='{GREY}'>✔️ heute {done_today} erledigt</font></small>" if done_today else ""
         return (
             "<p style='text-align:center'>"
-            f"<font color='{GREEN}'><big><big><b>✅</b></big></big></font><br>"
+            f"<big><big><big><big>🛒</big></big></big></big> <font color='{GREEN}'><big><big><big><b>✓</b></big></big></big></font><br>"
             f"<b>Alles eingekauft!</b><br><small><font color='{GREY}'>{title}</font></small>{done}</p>"
         )
     shown = [f"{emoji_for(n)} {escape(n)}" for n in items[:max_items]]
@@ -88,7 +88,8 @@ def widget_html(list_name: str, items: list[str], done_today: int = 0, max_items
     done = f" · ✔️ {done_today}" if done_today else ""
     return (
         "<p style='text-align:center'>"
-        f"<font color='{ACCENT}'><big><big><b>🛒 {count}</b></big></big></font><br>"
+        f"<big><big><big><big>🛒</big></big></big></big> "
+        f"<font color='{ACCENT}'><big><big><big><b>{count}</b></big></big></big></font><br>"
         f"<b>{title}</b><small><font color='{GREY}'>{done}</font></small><br>"
         f"<small><font color='{GREY}'>{'<br>'.join(lines)}</font></small></p>"
     )
@@ -98,9 +99,13 @@ def widget_small_html(items: list[str]) -> str:
     """Kleines Widget (1×1 / 2×1): nur Einkaufswagen und Anzahl."""
     count = len(items)
     if count == 0:
-        return f"<p style='text-align:center'><font color='{GREEN}'><big><big><b>✅</b></big></big></font><br><small>erledigt</small></p>"
+        return (
+            "<p style='text-align:center'><big><big><big><big>🛒</big></big></big></big><br>"
+            f"<font color='{GREEN}'><big><b>✓ erledigt</b></big></font></p>"
+        )
     word = "Artikel"
     return (
         "<p style='text-align:center'>"
-        f"<font color='{ACCENT}'><big><big><b>🛒 {count}</b></big></big></font><br><small>{word}</small></p>"
+        f"<big><big><big><big>🛒</big></big></big></big><br>"
+        f"<font color='{ACCENT}'><big><big><b>{count}</b></big></big></font> <small>{word}</small></p>"
     )

@@ -70,6 +70,8 @@ In der Home-Assistant-App: lange auf den Startbildschirm tippen → **Widgets �
 ```
 
 Alternativ zeigt das Widget **Entitätsstatus** mit dem Sensor einfach die Zahl, und das Widget **To-do-Liste** (`todo.zuhause`) die Artikel zum Abhaken.
+**Antippen öffnet die Einkaufsliste:** Das Vorlagen-Widget kann beim Antippen nur aktualisieren. Zum Öffnen in der App unter *Einstellungen → Companion App → Shortcuts verwalten* einen angehefteten Shortcut anlegen (Typ „Dashboard“, Pfad deines Dashboards mit der Karte, z. B. `/lovelace/einkauf`) und direkt neben/unter das Widget legen – oder das Widget **To-do-Liste** verwenden (Tipp auf die Überschrift öffnet die Liste).
+
 Weitere Attribute für eigene Vorlagen: `artikel`, `artikel_mit_bild`, `heute_erledigt`, `liste`. Die Attribute `anzahl`/`artikel` an der To-do-Liste bleiben erhalten.
 
 Hinweis: Android aktualisiert Widgets standardmäßig nur alle 30 Minuten bei eingeschaltetem Bildschirm. Für sofortige Updates in den Android-Einstellungen unter *Benachrichtigungen → Benachrichtigungen lesen, beantworten & steuern* die Home-Assistant-App erlauben.
