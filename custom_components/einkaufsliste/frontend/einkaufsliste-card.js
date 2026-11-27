@@ -4,7 +4,7 @@
  * mit Reitern für Geschäfte.
  * https://github.com/domiundergroun/Einkaufsliste
  */
-const CARD_VERSION = "1.8.0";
+const CARD_VERSION = "1.9.0";
 
 const ACCENTS = {
   bring: ["#ee524f", "#d63d3a"],
@@ -576,7 +576,7 @@ form.add input::placeholder { color: var(--secondary-text-color); opacity: .8; }
   cursor: pointer; padding: 8px 16px; border-radius: 12px; }
 .pk-cancel:hover { background: var(--secondary-background-color); }
 /* Einklappbare Bereiche in den Einstellungen */
-.kb-state { display: inline-flex; align-items: center; gap: 7px; color: #2a9d2a; font-weight: 700; }
+.acc-sub.kb-state, .kb-state { color: #2a9d2a !important; display: inline-flex; align-items: center; gap: 7px; color: #2a9d2a; font-weight: 700; }
 .lamp { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #2EB82E; flex: none;
   box-shadow: 0 0 0 3px rgba(46,184,46,.22), 0 0 8px rgba(46,184,46,.8); animation: kb-glow 2.4s ease-in-out infinite; }
 @keyframes kb-glow { 50% { box-shadow: 0 0 0 5px rgba(46,184,46,.12), 0 0 12px rgba(46,184,46,.9); } }
@@ -1253,7 +1253,7 @@ class EinkaufslisteCard extends HTMLElement {
       const admin = e && (e.code === "unauthorized" || /unauthor/i.test(e.message || ""));
       this._els.spBody.innerHTML = `<div class="error">${admin
         ? "Nur Administratoren können die Einstellungen ändern."
-        : esc(e?.message || "Einstellungen konnten nicht geladen werden. Ist die Integration auf Version 1.7.0 aktualisiert und Home Assistant neu gestartet?")}</div>`;
+        : esc(e?.message || "Einstellungen konnten nicht geladen werden. Ist die Integration auf Version 1.9.0 aktualisiert und Home Assistant neu gestartet?")}</div>`;
     }
   }
 

@@ -55,16 +55,24 @@ Mit der Integration [Kochbuch](https://github.com/domiundergroun/Kochrezepte) (a
 Ist die Verbindung aktiv, erscheint in der Karte unter ⚙️ ein Bereich **Kochbuch** mit grünem Lämpchen. Ohne Verbindung wird er nicht angezeigt.
 
 ## Android-Widget
-Mit der Home-Assistant-App lässt sich die Liste auf den Startbildschirm legen (lange auf den Startbildschirm tippen → Widgets → Home Assistant):
+Die Integration legt den Sensor **„Offene Artikel“** an (z. B. `sensor.zuhause_offene_artikel`) – Zustand = Anzahl offener Artikel. Er liefert außerdem fertig gestaltete Widget-Texte.
 
-- **To-do-Liste** (empfohlen zum Öffnen): Liste `todo.zuhause` wählen. Zeigt die Artikel; ein Tipp auf die Überschrift öffnet die Liste in der App.
-- **Vorlage** (für die Anzahl): Die Liste liefert dafür die Attribute `anzahl` und `artikel`. Diese Vorlage einfügen (Entität anpassen), Design „Transparent“ oder „Dynamische Farben“:
+In der Home-Assistant-App: lange auf den Startbildschirm tippen → **Widgets → Home Assistant → Vorlage**, Design „Dynamische Farben“ oder „Transparent“:
 
+**Groß** (Anzahl, Listenname, die ersten Artikel mit Bild):
 ```jinja
-<p style="text-align:center"><font color='#E5534B'><big><b>🛒 {{ states('todo.zuhause') | int(0) }}</b></big></font><br><b>auf der Einkaufsliste</b><br><font color='#9AA0A6'>{{ (state_attr('todo.zuhause','artikel') or [])[:3] | join(', ') }}{{ ' …' if (state_attr('todo.zuhause','artikel') or []) | length > 3 else '' }}</font></p>
+{{ state_attr('sensor.zuhause_offene_artikel', 'widget') }}
 ```
 
-Ein Tipp auf das Vorlagen-Widget aktualisiert es nur – zum Öffnen der Liste das To-do-Widget daneben legen.
+**Klein** (nur 🛒 und Anzahl):
+```jinja
+{{ state_attr('sensor.zuhause_offene_artikel', 'widget_klein') }}
+```
+
+Alternativ zeigt das Widget **Entitätsstatus** mit dem Sensor einfach die Zahl, und das Widget **To-do-Liste** (`todo.zuhause`) die Artikel zum Abhaken.
+Weitere Attribute für eigene Vorlagen: `artikel`, `artikel_mit_bild`, `heute_erledigt`, `liste`. Die Attribute `anzahl`/`artikel` an der To-do-Liste bleiben erhalten.
+
+Hinweis: Android aktualisiert Widgets standardmäßig nur alle 30 Minuten bei eingeschaltetem Bildschirm. Für sofortige Updates in den Android-Einstellungen unter *Benachrichtigungen → Benachrichtigungen lesen, beantworten & steuern* die Home-Assistant-App erlauben.
 
 ## Geschäfte
 1. **Einstellungen → Geräte & Dienste → Einkaufsliste (Bring!) → Konfigurieren** → unter „Deine Geschäfte“ auswählen (eigene Geschäfte mit Komma getrennt ergänzen).

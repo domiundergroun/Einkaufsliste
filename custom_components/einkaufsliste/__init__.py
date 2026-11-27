@@ -38,7 +38,7 @@ from .sync import BRING_PREFIX, BringPartner, EntityPartner, ListSync
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.TODO]
+PLATFORMS: list[Platform] = [Platform.TODO, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 type EinkaufslisteConfigEntry = ConfigEntry[EinkaufslisteCoordinator]
